@@ -1,230 +1,185 @@
-const express = require("express");
-const http = require("http");
-const path = require("path");
-const fs = require("fs");
-const multer = require("multer");
-const { WebSocketServer } = require("ws");
-const { v4: uuidv4 } = require("uuid");
+const express=require('express');
+const http=require('http');
+const path=require('path');
+const fs=require('fs');
+const crypto=require('crypto');
+const multer=require('multer');
+const {WebSocketServer}=require('ws');
+const {v4:uuidv4}=require('uuid');
 
-const PORT = Number(process.env.PORT || 8080);
-const JOB_TIMEOUT_SECONDS = Number(process.env.JOB_TIMEOUT_SECONDS || 300);
-const MAX_FILE_SIZE_MB = Number(process.env.MAX_FILE_SIZE_MB || 20);
-const UPLOAD_DIR = path.resolve(process.env.UPLOAD_DIR || "uploads");
+const PORT=Number(process.env.PORT||8080);
+const API_KEY=process.env.API_KEY||'CHANGE_THIS_SECRET';
+const JOB_TIMEOUT=Number(process.env.JOB_TIMEOUT_SECONDS||300);
+const MAX_MB=Number(process.env.MAX_FILE_SIZE_MB||20);
+const PUBLIC_URL=(process.env.PUBLIC_URL||'').replace(/\/$/,'');
 
-fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+const UPLOAD=path.resolve(process.env.UPLOAD_DIR||'uploads');
+fs.mkdirSync(UPLOAD,{recursive:true});
+const DATA=path.resolve('data');
+fs.mkdirSync(DATA,{recursive:true});
+const DB=path.join(DATA,'state.json');
 
-const app = express();
-app.use(express.json({ limit: "1mb" }));
+let state={jobs:{},clients:{}};
+try{if(fs.existsSync(DB))state=JSON.parse(fs.readFileSync(DB,'utf8'));}catch(e){}
 
-const server = http.createServer(app);
-const wss = new WebSocketServer({ server });
+function save(){
+  const clients=Object.fromEntries(Object.entries(state.clients).map(([id,c])=>[id,{
+    clientId:id,printerName:c.printerName||'',lastSeen:c.lastSeen||null,
+    online:!!c.online,createdAt:c.createdAt||null,uploadToken:c.uploadToken
+  }]));
+  fs.writeFileSync(DB+'.tmp',JSON.stringify({jobs:state.jobs,clients},null,2));
+  fs.renameSync(DB+'.tmp',DB);
+}
+function send(ws,x){if(ws&&ws.readyState===1)ws.send(JSON.stringify(x));}
+function auth(req){return String(req.headers['x-api-key']||req.query.apiKey||'')===API_KEY;}
+function tokenAuth(clientId,token){return !!clientId && !!token && state.clients[clientId]?.uploadToken===token;}
+function del(j){if(j?.storedPath)fs.rm(j.storedPath,{force:true},()=>{});delete state.jobs[j.jobId];save();}
+function publicBase(req){return PUBLIC_URL||`${req.protocol}://${req.get('host')}`;}
+function uploadUrl(req,id,c){return `${publicBase(req)}/upload?clientId=${encodeURIComponent(id)}&token=${encodeURIComponent(c.uploadToken)}`;}
 
-/*
-  In-memory state for the first version.
-  Jobs are intentionally deleted after completion/cancellation.
-  For production persistence, replace this map with PostgreSQL/Redis.
-*/
-const clients = new Map(); // clientId -> { ws, printerName, connectedAt }
-const jobs = new Map();    // jobId -> job
+const app=express();
+const server=http.createServer(app);
+const wss=new WebSocketServer({noServer:true});
+app.use(express.json({limit:'1mb'}));
+app.use(express.static(path.resolve(__dirname,'../../website')));
+const upload=multer({dest:UPLOAD,limits:{fileSize:MAX_MB*1024*1024}});
 
-const upload = multer({
-  dest: UPLOAD_DIR,
-  limits: { fileSize: MAX_FILE_SIZE_MB * 1024 * 1024 }
+app.get('/health',(q,r)=>r.json({
+  ok:true,service:'Auto Print Server',time:new Date().toISOString(),
+  clients:Object.values(state.clients).filter(x=>x.online).length,
+  jobs:Object.keys(state.jobs).length
+}));
+
+app.get('/upload',(q,r)=>r.sendFile(path.resolve(__dirname,'../../website/upload.html')));
+
+app.get('/api/client/:id/status',(q,r)=>{
+  let c=state.clients[q.params.id];
+  r.json({registered:!!c,online:!!c?.online,printerName:c?.printerName||'',lastSeen:c?.lastSeen||null});
 });
 
-function json(res, status, body) {
-  res.status(status).json(body);
-}
-
-function safeSend(ws, data) {
-  if (ws && ws.readyState === 1) ws.send(JSON.stringify(data));
-}
-
-function clientStatus(clientId) {
-  const c = clients.get(clientId);
-  return c ? { online: true, printerName: c.printerName } : { online: false };
-}
-
-// Health
-app.get("/health", (req, res) => {
-  json(res, 200, {
-    ok: true,
-    service: "auto-print-server",
-    time: new Date().toISOString(),
-    clients: clients.size,
-    jobs: jobs.size
-  });
+app.get('/api/clients',(q,r)=>{
+  if(!auth(q))return r.status(401).json({error:'unauthorized'});
+  r.json(Object.values(state.clients).map(c=>({
+    clientId:c.clientId,printerName:c.printerName||'',online:!!c.online,
+    lastSeen:c.lastSeen||null,createdAt:c.createdAt||null,
+    uploadUrl:uploadUrl(q,c.clientId,c)
+  })));
 });
 
-// Client registration/status
-app.get("/api/client/:clientId/status", (req, res) => {
-  json(res, 200, clientStatus(req.params.clientId));
+app.get('/api/jobs',(q,r)=>{
+  if(!auth(q))return r.status(401).json({error:'unauthorized'});
+  r.json(Object.values(state.jobs).map(j=>({...j,storedPath:undefined})));
 });
 
-// Upload a print job for a specific PC client.
-// Form fields: clientId, file
-app.post("/api/print", upload.single("file"), (req, res) => {
-  if (!req.file) return json(res, 400, { ok: false, error: "file is required" });
-
-  const clientId = String(req.body.clientId || "").trim();
-  if (!clientId) {
-    fs.rm(req.file.path, { force: true }, () => {});
-    return json(res, 400, { ok: false, error: "clientId is required" });
+app.post('/api/print',upload.single('file'),(q,r)=>{
+  const clientId=String(q.body.clientId||'').trim();
+  const uploadToken=String(q.body.uploadToken||'').trim();
+  const allowed=auth(q)||tokenAuth(clientId,uploadToken);
+  if(!allowed){
+    if(q.file)fs.rm(q.file.path,{force:true},()=>{});
+    return r.status(401).json({error:'unauthorized'});
   }
+  if(!q.file)return r.status(400).json({error:'file required'});
+  const c=state.clients[clientId];
+  if(!c){
+    fs.rm(q.file.path,{force:true},()=>{});
+    return r.status(404).json({error:'unknown clientId'});
+  }
+  const now=Date.now();
+  const job={jobId:uuidv4(),clientId,originalName:q.file.originalname||'print-file',
+    storedPath:q.file.path,status:'pending',
+    createdAt:new Date(now).toISOString(),
+    expiresAt:new Date(now+JOB_TIMEOUT*1000).toISOString()};
+  state.jobs[job.jobId]=job;
+  if(c.online){
+    job.status='sent';
+    send(c.ws,{type:'print_job',jobId:job.jobId,fileName:job.originalName,
+      downloadUrl:`/api/jobs/${job.jobId}/download`,expiresAt:job.expiresAt});
+  }
+  save();
+  r.status(201).json({ok:true,jobId:job.jobId,status:job.status,expiresAt:job.expiresAt});
+});
 
-  const jobId = uuidv4();
-  const now = Date.now();
+app.get('/api/jobs/:id/download',(q,r)=>{
+  let j=state.jobs[q.params.id];
+  if(!j)return r.status(404).json({error:'not found'});
+  if(!auth(q))return r.status(401).json({error:'unauthorized'});
+  if(!fs.existsSync(j.storedPath))return r.status(410).json({error:'expired'});
+  r.download(j.storedPath,j.originalName);
+});
 
-  const job = {
-    jobId,
-    clientId,
-    originalName: req.file.originalname || "print-file",
-    storedPath: req.file.path,
-    createdAt: new Date(now).toISOString(),
-    expiresAt: new Date(now + JOB_TIMEOUT_SECONDS * 1000).toISOString(),
-    status: "pending"
+app.post('/api/jobs/:id/status',(q,r)=>{
+  if(!auth(q))return r.status(401).json({error:'unauthorized'});
+  let j=state.jobs[q.params.id];
+  if(!j)return r.status(404).json({error:'not found'});
+  if(!['completed','cancelled','error'].includes(q.body.status))return r.status(400).json({error:'invalid status'});
+  del(j);r.json({ok:true});
+});
+
+wss.on('connection',(ws,req)=>{
+  let u=new URL(req.url,'http://localhost');
+  let id=String(u.searchParams.get('clientId')||'');
+  let printer=String(u.searchParams.get('printerName')||'');
+  let key=String(u.searchParams.get('apiKey')||'');
+  if(!id||key!==API_KEY)return ws.close(1008,'unauthorized');
+
+  let old=state.clients[id];
+  if(old?.ws&&old.ws!==ws)try{old.ws.close()}catch(e){}
+
+  const existing=state.clients[id];
+  const uploadToken=existing?.uploadToken||crypto.randomBytes(24).toString('hex');
+  state.clients[id]={
+    clientId:id,printerName:printer,ws,online:true,
+    lastSeen:new Date().toISOString(),
+    createdAt:existing?.createdAt||new Date().toISOString(),
+    uploadToken
   };
+  save();
 
-  jobs.set(jobId, job);
+  send(ws,{type:'registered',clientId:id,
+    uploadToken,uploadUrl:`/upload?clientId=${encodeURIComponent(id)}&token=${encodeURIComponent(uploadToken)}`});
 
-  const target = clients.get(clientId);
-  if (target) {
-    job.status = "sent";
-    safeSend(target.ws, {
-      type: "print_job",
-      jobId,
-      fileName: job.originalName,
-      downloadUrl: `/api/jobs/${jobId}/download`
-    });
-  }
-
-  json(res, 201, {
-    ok: true,
-    jobId,
-    status: job.status,
-    expiresAt: job.expiresAt,
-    client: clientStatus(clientId)
-  });
-});
-
-// Client downloads the actual file.
-app.get("/api/jobs/:jobId/download", (req, res) => {
-  const job = jobs.get(req.params.jobId);
-  if (!job) return res.status(404).json({ ok: false, error: "job not found" });
-  if (!fs.existsSync(job.storedPath)) {
-    return res.status(410).json({ ok: false, error: "file expired" });
-  }
-  res.download(job.storedPath, job.originalName);
-});
-
-// Client acknowledges completion/cancellation.
-app.post("/api/jobs/:jobId/complete", (req, res) => {
-  const job = jobs.get(req.params.jobId);
-  if (!job) return json(res, 404, { ok: false, error: "job not found" });
-
-  job.status = req.body.status === "cancelled" ? "cancelled" : "completed";
-  job.completedAt = new Date().toISOString();
-  removeJobFile(job);
-  jobs.delete(job.jobId);
-
-  json(res, 200, { ok: true, status: job.status });
-});
-
-function removeJobFile(job) {
-  if (job && job.storedPath) fs.rm(job.storedPath, { force: true }, () => {});
-}
-
-// WebSocket client protocol:
-// client connects to ws://SERVER/ws?clientId=ABC123&printerName=HP
-wss.on("connection", (ws, req) => {
-  const url = new URL(req.url, "http://localhost");
-  const clientId = String(url.searchParams.get("clientId") || "").trim();
-  const printerName = String(url.searchParams.get("printerName") || "").trim();
-
-  if (!clientId) {
-    ws.close(1008, "clientId required");
-    return;
-  }
-
-  const old = clients.get(clientId);
-  if (old && old.ws !== ws) {
-    try { old.ws.close(4000, "replaced by new connection"); } catch (_) {}
-  }
-
-  clients.set(clientId, {
-    ws,
-    printerName,
-    connectedAt: new Date().toISOString()
-  });
-
-  safeSend(ws, {
-    type: "registered",
-    clientId,
-    serverTime: new Date().toISOString()
-  });
-
-  // Deliver all pending jobs for this client.
-  for (const job of jobs.values()) {
-    if (job.clientId === clientId && job.status === "pending") {
-      job.status = "sent";
-      safeSend(ws, {
-        type: "print_job",
-        jobId: job.jobId,
-        fileName: job.originalName,
-        downloadUrl: `/api/jobs/${job.jobId}/download`
-      });
+  for(let j of Object.values(state.jobs)){
+    if(j.clientId===id&&j.status==='pending'){
+      j.status='sent';
+      send(ws,{type:'print_job',jobId:j.jobId,fileName:j.originalName,
+        downloadUrl:`/api/jobs/${j.jobId}/download`,expiresAt:j.expiresAt});
     }
   }
+  save();
 
-  ws.on("message", raw => {
-    try {
-      const msg = JSON.parse(raw.toString());
-      if (msg.type === "ping") {
-        safeSend(ws, { type: "pong", time: new Date().toISOString() });
-      } else if (msg.type === "job_status" && msg.jobId) {
-        const job = jobs.get(msg.jobId);
-        if (!job || job.clientId !== clientId) return;
-        if (msg.status === "completed" || msg.status === "cancelled") {
-          job.status = msg.status;
-          removeJobFile(job);
-          jobs.delete(job.jobId);
+  ws.on('message',raw=>{
+    try{
+      let m=JSON.parse(raw.toString());
+      if(m.type==='ping')send(ws,{type:'pong'});
+      if(m.type==='job_status'&&m.jobId){
+        let j=state.jobs[m.jobId];
+        if(j&&j.clientId===id&&['completed','cancelled','error'].includes(m.status)){
+          if(j.storedPath)fs.rm(j.storedPath,{force:true},()=>{});
+          delete state.jobs[j.jobId];save();
         }
       }
-    } catch (_) {}
+    }catch(e){}
   });
-
-  ws.on("close", () => {
-    const current = clients.get(clientId);
-    if (current && current.ws === ws) clients.delete(clientId);
+  ws.on('close',()=>{
+    let c=state.clients[id];
+    if(c&&c.ws===ws){c.online=false;c.ws=null;c.lastSeen=new Date().toISOString();save();}
   });
 });
 
-// Cancel expired jobs every 10 seconds.
-setInterval(() => {
-  const now = Date.now();
-  for (const [jobId, job] of jobs) {
-    if (new Date(job.expiresAt).getTime() <= now) {
-      removeJobFile(job);
-      const c = clients.get(job.clientId);
-      if (c) safeSend(c.ws, {
-        type: "job_cancelled",
-        jobId,
-        reason: "timeout"
-      });
-      jobs.delete(jobId);
+server.on('upgrade',(req,socket,head)=>{
+  if(new URL(req.url,'http://localhost').pathname!=='/ws')return socket.destroy();
+  wss.handleUpgrade(req,socket,head,ws=>wss.emit('connection',ws,req));
+});
+
+setInterval(()=>{
+  for(let j of Object.values(state.jobs)){
+    if(Date.now()>=new Date(j.expiresAt).getTime()){
+      let c=state.clients[j.clientId];
+      if(c?.online)send(c.ws,{type:'job_cancelled',jobId:j.jobId,reason:'timeout'});
+      del(j);
     }
   }
-}, 10000);
+},10000);
 
-app.get("/", (req, res) => {
-  res.type("html").send(`
-    <h2>Auto Print Server</h2>
-    <p>Central server is running.</p>
-    <p><a href="/health">Health</a></p>
-  `);
-});
-
-server.listen(PORT, () => {
-  console.log(`Auto Print Server listening on port ${PORT}`);
-  console.log(`WebSocket endpoint: ws://SERVER:${PORT}/ws`);
-});
+server.listen(PORT,()=>console.log('Auto Print Server listening on '+PORT));
