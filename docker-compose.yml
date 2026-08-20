@@ -1,0 +1,14 @@
+services:
+  auto-print-server:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      API_KEY: CHANGE_THIS_SECRET
+      JOB_TIMEOUT_SECONDS: 300
+      MAX_FILE_SIZE_MB: 20
+    volumes:
+      - ./uploads:/app/uploads
+      - ./data:/app/data
