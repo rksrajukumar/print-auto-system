@@ -1,0 +1,16 @@
+{
+  "name": "auto-print-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Central server for Auto Print Server PC clients",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js"
+  },
+  "dependencies": {
+    "express": "^5.1.0",
+    "multer": "^2.0.2",
+    "ws": "^8.18.3",
+    "uuid": "^11.1.0"
+  }
+}
