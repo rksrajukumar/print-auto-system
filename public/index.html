@@ -1,186 +1,30 @@
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Auto Print Server — Admin Dashboard</title>
+<!doctype html><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1">
+<title>Auto Print Server Admin</title>
 <style>
-:root{
- --green:#087b43;--green2:#0b8f4d;--nav:#062238;--nav2:#0b3047;
- --bg:#f4f7fb;--card:#fff;--text:#17202a;--muted:#6b7785;--line:#dfe6ed;
- --red:#d93025;--orange:#e98b00;--blue:#2468d8;--purple:#6741d9;
-}
-*{box-sizing:border-box} body{margin:0;font-family:Inter,Arial,sans-serif;background:var(--bg);color:var(--text)}
-button,input,select{font:inherit} button{cursor:pointer}
-.app{display:flex;min-height:100vh}.sidebar{width:245px;background:linear-gradient(180deg,var(--nav),#031827);color:#fff;position:fixed;inset:0 auto 0 0;z-index:20}
-.brand{padding:20px 18px;border-bottom:1px solid #234154;display:flex;gap:11px;align-items:center}.brandIcon{font-size:34px}.brand b{font-size:16px;display:block;letter-spacing:.5px}.brand small{color:#b8c8d4}
-.nav{padding:13px 8px}.nav a{display:flex;align-items:center;gap:12px;color:#e8f1f6;text-decoration:none;padding:11px 13px;border-radius:7px;margin:3px 0;font-size:14px}.nav a:hover,.nav a.active{background:linear-gradient(90deg,#087b43,#0b8e50)}.nav .sub{padding-left:44px;font-size:13px}.sideInfo{position:absolute;left:10px;right:10px;bottom:44px;border:1px solid #126c4a;border-radius:9px;padding:12px;font-size:12px;background:#051e2e}.sideInfo div{display:flex;justify-content:space-between;padding:3px 0;color:#dbe7ee}.sideInfo b{color:#fff}.copy{position:absolute;bottom:10px;width:100%;text-align:center;font-size:10px;color:#7e9aaa}
-.main{margin-left:245px;width:calc(100% - 245px)}.top{height:68px;background:#fff;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;padding:0 25px;position:sticky;top:0;z-index:10}.title{font-size:18px;font-weight:700}.crumb{color:#687684;font-weight:500}.topright{display:flex;align-items:center;gap:14px;font-size:13px}.online{border:1px solid #cde8d8;background:#f3fbf6;color:#147a43;padding:7px 12px;border-radius:7px;font-weight:600}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#18a957;margin-right:6px}
-.content{padding:20px 27px;max-width:1500px;margin:auto}.cards{display:grid;grid-template-columns:repeat(5,1fr);gap:17px;margin-bottom:18px}.stat{background:#fff;border:1px solid var(--line);border-radius:8px;padding:16px;min-height:104px;position:relative}.stat .ico{font-size:25px}.stat h4{margin:6px 0 2px;color:#5d6875;font-size:13px}.stat strong{font-size:25px}.stat small{display:block;margin-top:5px;color:#5c6875}.stat.green{border-top:3px solid var(--green)}.stat.blue{border-top:3px solid #6c63ff}.stat.orange{border-top:3px solid #f0a000}.stat.purple{border-top:3px solid #7a51d7}.stat.teal{border-top:3px solid #149bb1}
-.grid2{display:grid;grid-template-columns:1fr 1.35fr;gap:17px}.card{background:#fff;border:1px solid var(--line);border-radius:9px;margin-bottom:17px;overflow:hidden}.cardHead{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between}.cardHead h2{font-size:15px;margin:0;color:#155b37}.cardHead h2.blue{color:#224fa0}.cardBody{padding:17px}
-.formgrid{display:grid;grid-template-columns:1fr 1fr;gap:13px}.field label{display:block;font-size:11px;font-weight:700;color:#65717d;margin:0 0 5px;text-transform:uppercase}.field input,.field select{width:100%;border:1px solid #cbd5df;border-radius:6px;padding:10px;background:#fff}.field.full{grid-column:1/-1}
-.btn{border:0;border-radius:6px;padding:10px 14px;color:#fff;background:var(--green);font-weight:700}.btn.secondary{background:#eef4f0;color:#0b7c43;border:1px solid #c7e0d2}.btn.blue{background:#174fbe}.btn.danger{background:#d93025}.btn.gray{background:#6b7785}.btn.small{padding:7px 10px;font-size:12px}
-.qrbox{display:flex;align-items:center;gap:17px;margin-top:14px}.qrbox img{width:125px;height:125px;border:8px solid #fff;box-shadow:0 1px 7px #ccd5dd}.hint{font-size:12px;color:var(--muted);line-height:1.5}.notice{background:#fff8df;border:1px solid #f0df9b;border-radius:7px;padding:10px;font-size:12px;color:#705a00;margin-top:13px}
-.tableWrap{overflow:auto}.table{width:100%;border-collapse:collapse;font-size:12px;min-width:760px}.table th{background:#f8fafc;text-align:left;color:#586573;padding:10px;border-bottom:1px solid var(--line);white-space:nowrap}.table td{padding:10px;border-bottom:1px solid #edf0f3;vertical-align:middle}.table tr:hover{background:#fbfdff}.badge{padding:4px 8px;border-radius:12px;font-weight:700;font-size:11px;display:inline-block}.active{background:#e2f6e9;color:#087b43}.offline{background:#fde8e7;color:#c62828}.waiting{background:#fff2d7;color:#a05b00}.queued{background:#e4efff;color:#2258a7}.done{background:#e5f7ef;color:#137849}.miniQr{width:48px;height:48px;border:1px solid #ddd}.actions{display:flex;gap:5px;flex-wrap:wrap}.link{color:#1162b7;text-decoration:none;font-weight:600}.muted{color:var(--muted)}
-.bottomGrid{display:grid;grid-template-columns:1fr 1fr;gap:17px}.flow{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:15px}.flowStep{flex:1;text-align:center;background:#f7fafc;border:1px solid var(--line);border-radius:8px;padding:12px;font-size:12px}.flowStep b{display:block;margin-top:6px}.arrow{color:var(--green);font-size:20px}
-.modal{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:50;padding:15px}.modal.show{display:flex}.modalBox{background:#fff;border-radius:12px;max-width:620px;width:100%;max-height:90vh;overflow:auto}.modalHead{padding:15px 18px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between}.modalBody{padding:18px}.close{background:none;border:0;font-size:25px;color:#687684}
-.mobileMenu{display:none;background:none;border:0;font-size:24px}
-@media(max-width:1100px){.cards{grid-template-columns:repeat(3,1fr)}.grid2,.bottomGrid{grid-template-columns:1fr}}
-@media(max-width:800px){.sidebar{transform:translateX(-100%);transition:.2s}.sidebar.open{transform:translateX(0)}.main{margin-left:0;width:100%}.mobileMenu{display:block}.top{padding:0 14px}.content{padding:13px}.cards{grid-template-columns:repeat(2,1fr);gap:10px}.topright .date{display:none}.formgrid{grid-template-columns:1fr}.field.full{grid-column:auto}.flow{flex-direction:column}.arrow{transform:rotate(90deg)}}
-@media(max-width:460px){.cards{grid-template-columns:1fr 1fr}.stat{padding:11px}.stat strong{font-size:21px}.top .title{font-size:14px}.content{padding:9px}.cardBody{padding:12px}}
-</style>
-</head>
-<body>
-<div class="app">
-<aside class="sidebar" id="sidebar">
-  <div class="brand"><div class="brandIcon">☁️🖨️</div><div><b>AUTO PRINT SERVER</b><small>Central Server Dashboard</small></div></div>
-  <nav class="nav">
-    <a class="active" href="#dashboard">⌂ <span>Dashboard</span></a>
-    <a href="#clients">▣ <span>Clients / PCs</span><span style="margin-left:auto">›</span></a>
-    <a href="#qrcodes">⌁ <span>QR Codes (Upload Links)</span><span style="margin-left:auto">›</span></a>
-    <a href="#payments">▣ <span>Payment Settings</span><span style="margin-left:auto">⌃</span></a>
-    <a class="sub" href="#payments">Default (Main) Payment</a>
-    <a class="sub" href="#clients">Client Payment Settings</a>
-    <a href="#jobs">▤ <span>Jobs / Queue</span><span style="margin-left:auto">›</span></a>
-    <a href="#jobs">▤ <span>All Jobs (History)</span></a>
-    <a href="#logs">☷ <span>Logs</span></a>
-    <a href="#reports">▥ <span>Reports</span></a>
-    <a href="#settings">⚙ <span>Settings</span></a>
-    <a href="#users">♙ <span>Users</span></a>
-    <a href="#backup">▣ <span>Backup</span></a>
-    <a href="#info">ⓘ <span>System Info</span></a>
-  </nav>
-  <div class="sideInfo" id="sideInfo">Loading…</div>
-  <div class="copy">© 2026 Auto Print Server. All rights reserved.</div>
-</aside>
-
-<main class="main">
-<header class="top">
-  <div style="display:flex;align-items:center;gap:13px"><button class="mobileMenu" onclick="toggleMenu()">☰</button><div class="title">Dashboard <span class="crumb">/ Payment &amp; Clients Management</span></div></div>
-  <div class="topright"><span class="online"><span class="dot"></span>Server Status: Online</span><span class="date" id="clock">--</span><b>👤 Admin</b></div>
-</header>
-
-<section class="content" id="dashboard">
-<div class="cards">
-  <div class="stat blue"><div class="ico">🖥️</div><h4>Total Clients</h4><strong id="totalClients">0</strong><small>View all clients →</small></div>
-  <div class="stat green"><div class="ico">🖨️</div><h4>Active Clients</h4><strong id="activeClients">0</strong><small>Currently online →</small></div>
-  <div class="stat purple"><div class="ico">📋</div><h4>Total Jobs</h4><strong id="totalJobs">0</strong><small>All time jobs →</small></div>
-  <div class="stat orange"><div class="ico">🖨️</div><h4>Today's Jobs</h4><strong id="todayJobs">0</strong><small>Jobs received today →</small></div>
-  <div class="stat teal"><div class="ico">◷</div><h4>Pending Jobs</h4><strong id="pendingJobs">0</strong><small>In queue →</small></div>
-</div>
-
-<div class="grid2">
-<section class="card" id="payments">
- <div class="cardHead"><h2>▣ DEFAULT (MAIN) PAYMENT SETTINGS</h2><span class="muted">Used when client UPI is not set</span></div>
- <div class="cardBody">
-  <div class="formgrid">
-   <div class="field"><label>UPI ID / UPI Number</label><input id="upi" placeholder="yourupi@upi"></div>
-   <div class="field"><label>Base Amount (Per Job)</label><input id="base" type="number" min="0"></div>
-   <div class="field"><label>UPI Number</label><input id="num" placeholder="UPI number"></div>
-   <div class="field"><label>B/W Per Page</label><input id="bw" type="number" min="0"></div>
-   <div class="field"><label>Colour Per Page</label><input id="col" type="number" min="0"></div>
-   <div class="field"><label>Minimum Amount</label><input id="min" type="number" min="0"></div>
-  </div>
-  <div class="qrbox" id="mainQr"></div>
-  <button class="btn" onclick="saveSettings()">Save Default Settings</button>
-  <div class="notice">If client UPI is not set, the default (main) UPI / QR will be shown to customers.</div>
- </div>
-</section>
-
-<section class="card" id="clients">
- <div class="cardHead"><h2 class="blue">▣ CLIENT PAYMENT SETTINGS</h2><button class="btn blue small" onclick="openAdd()">＋ Add New Client</button></div>
- <div class="tableWrap"><table class="table"><thead><tr><th>ID</th><th>Client Name (Shop / PC)</th><th>PC ID</th><th>Status</th><th>UPI ID / UPI Number</th><th>UPI QR</th><th>Upload Link (QR Code)</th><th>Action</th></tr></thead><tbody id="clientRows"></tbody></table></div>
-</section>
-</div>
-
-<div class="bottomGrid">
-<section class="card" id="qrcodes">
- <div class="cardHead"><h2 style="color:#4a248f">🔗 CLIENT QR CODE (CUSTOMER UPLOAD LINK)</h2></div>
- <div class="cardBody">
-  <div class="formgrid">
-   <div class="field"><label>Selected Client</label><select id="clientSelect" onchange="showClientQr()"></select></div>
-   <div></div>
-  </div>
-  <div id="selectedQr"></div>
- </div>
-</section>
-
-<section class="card">
- <div class="cardHead"><h2 style="color:#395a91">How it works?</h2></div>
- <div class="flow">
-  <div class="flowStep">① 📱<b>Customer opens link / scans QR</b></div><div class="arrow">→</div>
-  <div class="flowStep">② 📄<b>Uploads file &amp; selects options</b></div><div class="arrow">→</div>
-  <div class="flowStep">③ ₹<b>Pays using UPI</b></div><div class="arrow">→</div>
-  <div class="flowStep">④ 🖨️<b>Client PC prints</b></div>
- </div>
- <div class="cardBody"><div class="notice">Payment verification is intentionally not used. After customer confirmation, the file is sent to the selected PC. Files are removed after completion/cancel.</div></div>
-</section>
-</div>
-
-<section class="card" id="jobs">
- <div class="cardHead"><h2 style="color:#3f4b57">▤ JOBS / QUEUE</h2><button class="btn secondary small" onclick="load()">↻ Refresh</button></div>
- <div class="tableWrap"><table class="table"><thead><tr><th>Job</th><th>File</th><th>PC</th><th>Pages</th><th>Copies</th><th>Type</th><th>Amount</th><th>Status</th><th>Time</th></tr></thead><tbody id="jobRows"></tbody></table></div>
-</section>
-
-<section class="card" id="info">
- <div class="cardHead"><h2 style="color:#3f4b57">ⓘ SERVER INFORMATION</h2></div>
- <div class="cardBody"><div id="serverInfo" class="muted">Auto Print Server v1.0.0 • Node.js / Express • JSON database</div></div>
-</section>
-</section>
-</main>
-</div>
-
-<div class="modal" id="modal"><div class="modalBox"><div class="modalHead"><b id="modalTitle">Client</b><button class="close" onclick="closeModal()">×</button></div><div class="modalBody" id="modalBody"></div></div></div>
-
+body{font-family:Arial;margin:0;background:#f4f7fb;color:#17202a}header{background:#05283d;color:#fff;padding:18px 24px;font-size:20px;font-weight:bold}
+.wrap{padding:20px;max-width:1200px;margin:auto}.card{background:#fff;border:1px solid #dbe3e9;border-radius:10px;padding:18px;margin-bottom:16px}
+input,button{padding:10px;border-radius:6px;border:1px solid #c8d2da;margin:4px}button{background:#087b43;color:white;border:0;cursor:pointer}.row{padding:12px 0;border-bottom:1px solid #eee}
+</style><header>☁ AUTO PRINT SERVER — ADMIN</header><div class=wrap>
+<div class=card><h2>Payment / Rates</h2>
+<input id=upi placeholder="Default UPI ID"><input id=num placeholder="UPI Number"><br>
+<input id=base type=number placeholder="Base"><input id=bw type=number placeholder="B/W/page"><input id=col type=number placeholder="Color/page"><input id=min type=number placeholder="Minimum"><br>
+<button onclick=saveSettings()>Save</button></div>
+<div class=card><h2>Registered Shop PCs</h2><p>Client ID is generated automatically by the server when the client application installs/registers.</p><div id=clients>Loading…</div></div>
+<div class=card><h2>Jobs</h2><div id=jobs>Loading…</div></div></div>
 <script>
-const $=id=>document.getElementById(id);
-let clients=[],jobs=[];
-async function api(url,opt){const r=await fetch(url,opt);let x={};try{x=await r.json()}catch{};if(!r.ok)throw new Error(x.error||('HTTP '+r.status));return x}
-function esc(v){return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
-function money(v){return '₹'+Number(v||0).toFixed(2)}
-function today(d){return new Date(d).toDateString()===new Date().toDateString()}
-function statusBadge(s){let c=s==='queued'?'queued':s==='waiting_payment'?'waiting':s==='completed'?'done':s==='failed'?'offline':'muted';let t=s==='waiting_payment'?'Waiting Payment':s[0]?.toUpperCase()+s.slice(1);return `<span class="badge ${c}">${esc(t)}</span>`}
-function upiQr(upi){if(!upi)return '';let data=encodeURIComponent(`upi://pay?pa=${upi}&pn=Auto%20Print%20Server`);return `https://api.qrserver.com/v1/create-qr-code/?size=180x180&data=${data}`}
+const $=x=>document.getElementById(x);
+async function api(u,o){let r=await fetch(u,o);return r.json()}
 async function load(){
- try{
-  const [s,cs,js]=await Promise.all([api('/api/admin/settings'),api('/api/admin/clients'),api('/api/admin/jobs')]);
-  clients=cs;jobs=js;
-  $('upi').value=s.upiId||'';$('num').value=s.upiNumber||'';$('base').value=s.baseAmount??10;$('bw').value=s.bwPerPage??1;$('col').value=s.colourPerPage??5;$('min').value=s.minAmount??10;
-  renderStats();renderClients();renderJobs();renderSelect();renderMainQr(s);renderSide();
- }catch(e){console.error(e);alert('Could not load dashboard: '+e.message)}
+ let s=await api('/api/admin/settings');upi.value=s.upiId;num.value=s.upiNumber;base.value=s.baseAmount;bw.value=s.bwPerPage;col.value=s.colourPerPage;min.value=s.minAmount;
+ let cs=await api('/api/admin/clients');
+ clients.innerHTML=cs.map(c=>`<div class=row><b>${c.name}</b> — <code>${c.clientId}</code> — ${c.online?'🟢 Online':'🔴 Offline'}<br>
+ <small>${location.origin}/upload.html?client=${encodeURIComponent(c.clientId)}</small><br>
+ <button onclick="qr('${c.clientId}')">Customer QR</button>
+ <button onclick="payment('${c.id}','${c.upiId||''}','${c.upiNumber||''}')">Payment</button></div>`).join('')||'No clients';
+ let js=await api('/api/admin/jobs');jobs.innerHTML=js.map(j=>`<div class=row>${j.originalName} — ${j.clientId} — ₹${j.amount} — <b>${j.status}</b></div>`).join('')||'No jobs';
 }
-function renderStats(){
- $('totalClients').textContent=clients.length;$('activeClients').textContent=clients.filter(c=>c.online).length;$('totalJobs').textContent=jobs.length;$('todayJobs').textContent=jobs.filter(j=>today(j.createdAt)).length;$('pendingJobs').textContent=jobs.filter(j=>['waiting_payment','queued'].includes(j.status)).length;
-}
-function renderClients(){
- $('clientRows').innerHTML=clients.length?clients.map((c,i)=>{
-  let upi=c.upiId||'Not Set (Use Default)',qr=c.paymentQr||upiQr(c.upiId);
-  return `<tr><td>${i+1}</td><td><b>${esc(c.name)}</b></td><td><b>${esc(c.pcId)}</b></td><td>${c.online?'<span class="badge active">Active</span>':'<span class="badge offline">Offline</span>'}</td><td>${esc(upi)}<br><span class="muted">${esc(c.upiNumber||'')}</span></td><td>${qr?`<img class="miniQr" src="${qr}" alt="UPI QR">`:'-'}</td><td><button class="btn secondary small" onclick="showUploadQr('${esc(c.pcId)}')">▣ View QR</button></td><td><div class="actions"><button class="btn blue small" onclick="openEdit(${c.id})">✎</button><button class="btn danger small" onclick="delClient(${c.id})">🗑</button></div></td></tr>`
- }).join(''):'<tr><td colspan="8" class="muted">No clients yet. Click “Add New Client”.</td></tr>';
-}
-function renderJobs(){
- $('jobRows').innerHTML=jobs.length?jobs.slice(0,50).map(j=>`<tr><td>#${j.id}</td><td>${esc(j.originalName)}</td><td>${esc(j.pcId)}</td><td>${j.pages}</td><td>${j.copies}</td><td>${j.printType==='colour'?'Colour':'B/W'}</td><td>${money(j.amount)}</td><td>${statusBadge(j.status)}</td><td>${new Date(j.createdAt).toLocaleString()}</td></tr>`).join(''):'<tr><td colspan="9" class="muted">No jobs yet.</td></tr>';
-}
-function renderSelect(){ $('clientSelect').innerHTML=clients.length?clients.map(c=>`<option value="${esc(c.pcId)}">${esc(c.name)} — ${esc(c.pcId)}</option>`).join(''):'<option>No clients</option>';if(clients.length)showClientQr()}
-function renderMainQr(s){let upi=s.upiId||'';$('mainQr').innerHTML=upi?`<img src="${upiQr(upi)}" alt="Main UPI QR"><div class="hint"><b>Main UPI QR</b><br>Scan to pay<br>${esc(upi)}</div>`:`<div class="notice">Enter a UPI ID to generate the main payment QR.</div>`}
-function showClientQr(){
- const c=clients.find(x=>x.pcId===$('clientSelect').value);if(!c){$('selectedQr').innerHTML='';return}
- $('selectedQr').innerHTML=`<div class="qrbox"><div><b>${esc(c.name)} — ${esc(c.pcId)}</b><div class="hint" id="uploadLinkText">Generating upload link…</div></div><div id="uploadQrImg"></div></div>`;
- api('/api/public/'+encodeURIComponent(c.pcId)+'/upload-link').then(x=>{$('uploadLinkText').innerHTML=`<a class="link" target="_blank" href="${esc(x.link)}">${esc(x.link)}</a>`;$('uploadQrImg').innerHTML=`<img src="${x.qr}" alt="Upload QR"><br><button class="btn secondary small" onclick="window.open('${esc(x.link)}','_blank')">Open Upload Page</button>`}).catch(e=>{$('uploadLinkText').textContent=e.message})
-}
-async function showUploadQr(pc){try{let x=await api('/api/public/'+encodeURIComponent(pc)+'/upload-link');openModal('Customer Upload QR',`<div style="text-align:center"><h3>${esc(pc)}</h3><img src="${x.qr}" style="width:260px;max-width:100%"><p><a class="link" href="${esc(x.link)}" target="_blank">${esc(x.link)}</a></p><button class="btn" onclick="navigator.clipboard?.writeText('${esc(x.link)}')">Copy Link</button></div>`)}catch(e){alert(e.message)}}
-function openAdd(){openModal('Add New Client',`<div class="formgrid"><div class="field full"><label>Client / Shop Name</label><input id="mName" placeholder="Shop 1"></div><div class="field"><label>PC ID</label><input id="mPc" placeholder="PC001"></div><div class="field"><label>Client UPI ID (optional)</label><input id="mUpi" placeholder="shop@upi"></div><div class="field"><label>Client UPI Number (optional)</label><input id="mNum" placeholder="UPI number"></div></div><br><button class="btn" onclick="createClient()">Create Client</button>`)}
-function openEdit(id){let c=clients.find(x=>x.id==id);if(!c)return;openModal('Edit Client — '+c.pcId,`<div class="formgrid"><div class="field full"><label>Client / Shop Name</label><input id="mName" value="${esc(c.name)}"></div><div class="field"><label>PC ID</label><input value="${esc(c.pcId)}" disabled></div><div class="field"><label>Client UPI ID</label><input id="mUpi" value="${esc(c.upiId||'')}"></div><div class="field"><label>Client UPI Number</label><input id="mNum" value="${esc(c.upiNumber||'')}"></div></div><br><button class="btn" onclick="updateClient(${id})">Save Changes</button>`)}
-async function createClient(){try{let x=await api('/api/admin/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('mName').value,pcId:$('mPc').value,upiId:$('mUpi').value,upiNumber:$('mNum').value})});closeModal();await load();alert('Client created. Client secret: '+x.secret)}catch(e){alert(e.message)}}
-async function updateClient(id){try{await api('/api/admin/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({name:$('mName').value,upiId:$('mUpi').value,upiNumber:$('mNum').value})});closeModal();load()}catch(e){alert(e.message)}}
-async function delClient(id){let c=clients.find(x=>x.id==id);if(!confirm('Delete '+(c?.name||'this client')+'?'))return;try{await api('/api/admin/clients/'+id,{method:'DELETE'});load()}catch(e){alert(e.message)}}
-async function saveSettings(){try{let s=await api('/api/admin/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({upiId:$('upi').value,upiNumber:$('num').value,baseAmount:+$('base').value,bwPerPage:+$('bw').value,colourPerPage:+$('col').value,minAmount:+$('min').value})});renderMainQr(s);alert('Settings saved')}catch(e){alert(e.message)}}
-function openModal(title,body){$('modalTitle').textContent=title;$('modalBody').innerHTML=body;$('modal').classList.add('show')}
-function closeModal(){$('modal').classList.remove('show')}
-function toggleMenu(){$('sidebar').classList.toggle('open')}
-function renderSide(){$('sideInfo').innerHTML=`<div><span>Server Version</span><b>1.0.0</b></div><div><span>Runtime</span><b>Node.js</b></div><div><span>Total Clients</span><b>${clients.length}</b></div><div><span>Active Clients</span><b>${clients.filter(c=>c.online).length}</b></div><div><span>Total Jobs</span><b>${jobs.length}</b></div><div><span>Today's Jobs</span><b>${jobs.filter(j=>today(j.createdAt)).length}</b></div>`}
-function clock(){let d=new Date();$('clock').textContent=d.toLocaleString()}
-setInterval(clock,1000);clock();load();
+async function saveSettings(){await api('/api/admin/settings',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({upiId:upi.value,upiNumber:num.value,baseAmount:+base.value,bwPerPage:+bw.value,colourPerPage:+col.value,minAmount:+min.value})});load()}
+async function qr(id){let x=await api('/api/public/'+id+'/qr');let w=window.open();w.document.write('<h2>Customer QR</h2><p>'+x.link+'</p><img src="'+x.qr+'" style="width:350px">')}
+async function payment(id,u,n){let a=prompt('Client UPI ID (blank = default)',u);if(a===null)return;let b=prompt('Client UPI Number (blank = default)',n);if(b===null)return;await api('/api/admin/clients/'+id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({upiId:a,upiNumber:b})});load()}
+load();setInterval(load,10000);
 </script>
-</body>
-</html>
