@@ -1,6 +1,0 @@
-{
-  "name":"auto-print-client",
-  "version":"2.0.0",
-  "private":true,
-  "scripts":{"start":"node client.js"}
-}
