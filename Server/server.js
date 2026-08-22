@@ -126,6 +126,11 @@ app.post('/api/admin/client/:id/enable',adminAuth,async(req,res)=>{const c=clien
 app.get('/api/qr/client/:id',async(req,res)=>{const c=clients.get(req.params.id);if(!c)return res.status(404).end();res.type('png');QRCode.toFileStream(res,`${BASE}/upload/${c.id}`,{width:600,margin:2});});
 app.get('/api/qr/payment/:id',async(req,res)=>{const c=clients.get(req.params.id);if(!c)return res.status(404).end();const p=paymentFor(c);const text=p.qr_text||`upi://pay?pa=${encodeURIComponent(p.upi_id)}&pn=${encodeURIComponent(p.name)}`;res.type('png');QRCode.toFileStream(res,text,{width:600,margin:2});});
 
+
+// Admin dashboard routes
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+
 const httpServer=app.listen(PORT,()=>console.log(`Auto Print Server running on ${BASE}`));
 const wss=new WebSocketServer({server:httpServer,path:'/ws'});
 function sendJob(clientId,j){const ws=sockets.get(clientId);if(ws&&ws.readyState===1){ws.send(JSON.stringify({type:'job',job:{id:j.id,filename:j.original_name,download:`${BASE}/api/job/${j.id}/file`,options:j.options}}));j.status='sent';}}
@@ -149,6 +154,3 @@ setInterval(()=>{const now=Date.now();for(const j of jobs.values()){
 
 
 // Root route: open the admin dashboard directly at /
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "admin.html"));
-});
