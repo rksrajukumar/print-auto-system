@@ -10,7 +10,8 @@ const JOB_DIR = path.join(DATA_DIR, 'jobs');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'CHANGE_ME';
-const REG_KEY = process.env.CLIENT_REGISTRATION_KEY || 'CHANGE_ME_TOO';
+const REG_KEY = process.env.CLIENT_REGISTRATION_KEY || '';
+if (!REG_KEY) { console.error('CLIENT_REGISTRATION_KEY is required'); process.exit(1); }
 
 fs.mkdirSync(JOB_DIR, { recursive: true });
 if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({clients:[], jobs:[], logs:[]}, null, 2));
