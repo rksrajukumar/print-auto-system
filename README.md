@@ -1,22 +1,16 @@
-# Auto Print Server — Customer QR Upload
+# Auto Print Server Final
 
-Client registration remains:
-- Client Key: `rksrajukumar`
-- Registration Value: `RK-AutoPrint-2026-8xK9`
-- Render variable accepted: `rksrajukumar` or `CLIENT_REGISTRATION_KEY`
+## Render environment
+- `CLIENT_KEY_NAME=rksrajukumar`
+- `CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
+- `PUBLIC_URL=https://print-auto-system-1.onrender.com`
+- `ADMIN_USER=admin`
+- `ADMIN_PASSWORD=<your-admin-password>`
 
-## Customer upload links
-After a client registers, its admin record contains a unique client ID. The customer URL is:
-`https://print-auto-system-1.onrender.com/upload/<CLIENT_ID>`
+## Customer flow
+QR → Upload → B/W/Color → Copies → A4/A3 → Amount → UPI → return to page → `I HAVE PAID` → `PRINT NOW` → client queue → default printer.
 
-The dashboard QR section can use:
-`/api/v1/public/client/<CLIENT_ID>/qr.svg`
+No payment gateway, no UTR field, no Admin payment verification, and no Client confirmation button.
 
-A customer upload creates a `QUEUED` job for that client PC and selected/default printer. The Windows client must poll the client jobs endpoint and print queued jobs for automatic printing.
-
-## Render
-Set the environment variable shown in your Render dashboard:
-`rksrajukumar=RK-AutoPrint-2026-8xK9`
-
-Recommended canonical variable:
-`CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
+## Important payment note
+Without a gateway/webhook the server cannot prove that a UPI payment happened. `I HAVE PAID` is a customer declaration. The shop owner may inspect the payment on their phone, but there is no confirmation control in the system.
