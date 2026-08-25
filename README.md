@@ -21,3 +21,10 @@ The default UPI is used for customers when the selected client has no client-spe
 
 ## Client UPI
 The existing **CLIENT PAYMENT / UPI SETTINGS** section remains available for per-client UPI ID and QR configuration.
+
+
+### Admin Login
+Default login if Render environment variables are not set:
+- Username: `admin`
+- Password: `CHANGE_ME`
+For production, set `ADMIN_USER` and `ADMIN_PASSWORD` in Render Environment Variables.
