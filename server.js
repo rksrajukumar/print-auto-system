@@ -10,6 +10,7 @@ const JOB_DIR = path.join(DATA_DIR, 'jobs');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'CHANGE_ME';
+const CLIENT_KEY_NAME = process.env.CLIENT_KEY_NAME || 'rksrajukumar';
 const REG_KEY = process.env.CLIENT_REGISTRATION_KEY || '';
 if (!REG_KEY) { console.error('CLIENT_REGISTRATION_KEY is required'); process.exit(1); }
 
@@ -50,22 +51,29 @@ app.post('/api/v1/admin/login',(req,res)=>{
 });
 
 app.post('/api/v1/client/register',(req,res)=>{
-  if(req.body?.registrationKey!==REG_KEY) return res.status(403).json({ok:false,error:'invalid_registration_key'});
+  if(req.body?.clientKey!==CLIENT_KEY_NAME || req.body?.registrationKey!==REG_KEY) return res.status(403).json({ok:false,error:'invalid_registration_credentials'});
   const deviceName=String(req.body.deviceName||'Windows-PC').slice(0,120);
+  const hostname=String(req.body.hostname||deviceName).slice(0,160);
+  const platform=String(req.body.platform||'Windows').slice(0,80);
+  const now=new Date().toISOString();
   let c=db.clients.find(x=>x.deviceId===req.body.deviceId);
   if(!c){
-    c={id:id('client'),deviceId:String(req.body.deviceId||id('device')),deviceName,token:crypto.randomBytes(32).toString('hex'),printers:[],active:true,createdAt:new Date().toISOString(),lastSeen:null};
+    c={id:id('client'),deviceId:String(req.body.deviceId||id('device')),deviceName,hostname,platform,token:crypto.randomBytes(32).toString('hex'),printers:[],active:true,createdAt:now,lastSeen:null,lastRegisteredAt:null,registrationCount:0,ip:''};
     db.clients.push(c); log('client','Client registered',{clientId:c.id,deviceName});
-  } else { c.deviceName=deviceName; c.active=true; }
+  } else { c.deviceName=deviceName; c.hostname=hostname; c.platform=platform; c.active=true; }
   c.printers=Array.isArray(req.body.printers)?req.body.printers.slice(0,100):c.printers;
-  c.lastSeen=new Date().toISOString(); save();
-  res.json({ok:true,clientId:c.id,token:c.token,serverTime:new Date().toISOString()});
+  c.lastSeen=now; c.lastRegisteredAt=now; c.registrationCount=Number(c.registrationCount||0)+1; c.ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
+  log('client','Client registration accepted',{clientId:c.id,deviceId:c.deviceId,deviceName:c.deviceName,hostname:c.hostname,platform:c.platform,ip:c.ip,printers:c.printers}); save();
+  res.json({ok:true,clientId:c.id,token:c.token,connectionStatus:'connected',clientKey:CLIENT_KEY_NAME,serverTime:now});
 });
 
 app.post('/api/v1/client/heartbeat',clientAuth,(req,res)=>{
   req.client.lastSeen=new Date().toISOString();
   if(Array.isArray(req.body?.printers)) req.client.printers=req.body.printers.slice(0,100);
   if(req.body?.deviceName) req.client.deviceName=String(req.body.deviceName).slice(0,120);
+  if(req.body?.hostname) req.client.hostname=String(req.body.hostname).slice(0,160);
+  if(req.body?.platform) req.client.platform=String(req.body.platform).slice(0,80);
+  req.client.ip=String(req.headers['x-forwarded-for']||req.socket.remoteAddress||'').split(',')[0].trim();
   save(); res.json({ok:true,serverTime:new Date().toISOString()});
 });
 
