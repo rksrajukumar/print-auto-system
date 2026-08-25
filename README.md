@@ -1,30 +1,22 @@
-# Auto Print Server — Default UPI QR Admin
+# Auto Print Server — Customer QR Upload
 
-This package keeps the existing Client registration, customer QR upload and print flow.
-
-## Registration
+Client registration remains:
 - Client Key: `rksrajukumar`
 - Registration Value: `RK-AutoPrint-2026-8xK9`
-- Server URL: `https://print-auto-system-1.onrender.com`
+- Render variable accepted: `rksrajukumar` or `CLIENT_REGISTRATION_KEY`
 
-## Default UPI
-- Default UPI ID: `9097676711@upi`
-- Default UPI QR: editable from the Admin Dashboard
+## Customer upload links
+After a client registers, its admin record contains a unique client ID. The customer URL is:
+`https://print-auto-system-1.onrender.com/upload/<CLIENT_ID>`
 
-## Admin Dashboard
-After admin login, use **SERVER DEFAULT PAYMENT / UPI SETTINGS** to:
-- edit the default UPI ID
-- upload/replace the default UPI QR image (PNG/JPG/WEBP, max 2 MB)
-- save the settings
+The dashboard QR section can use:
+`/api/v1/public/client/<CLIENT_ID>/qr.svg`
 
-The default UPI is used for customers when the selected client has no client-specific UPI ID/QR configured. Client-specific UPI settings still take priority.
+A customer upload creates a `QUEUED` job for that client PC and selected/default printer. The Windows client must poll the client jobs endpoint and print queued jobs for automatic printing.
 
-## Client UPI
-The existing **CLIENT PAYMENT / UPI SETTINGS** section remains available for per-client UPI ID and QR configuration.
+## Render
+Set the environment variable shown in your Render dashboard:
+`rksrajukumar=RK-AutoPrint-2026-8xK9`
 
-
-### Admin Login
-Default login if Render environment variables are not set:
-- Username: `admin`
-- Password: `CHANGE_ME`
-For production, set `ADMIN_USER` and `ADMIN_PASSWORD` in Render Environment Variables.
+Recommended canonical variable:
+`CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
