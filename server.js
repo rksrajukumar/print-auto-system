@@ -10,7 +10,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const JOB_DIR = path.join(DATA_DIR, 'jobs');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin12345';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'CHANGE_ME';
 const CLIENT_KEY_NAME = process.env.CLIENT_KEY_NAME || 'rksrajukumar';
 // Accept the Render environment variable shown in the user's dashboard.
 // Preferred name is CLIENT_REGISTRATION_KEY; rksrajukumar is supported as an alias.
@@ -32,7 +32,6 @@ if (!db.settings) db.settings = {};
 if (db.settings.defaultUpiId === undefined) db.settings.defaultUpiId = ENV_DEFAULT_UPI_ID;
 if (db.settings.defaultUpiQr === undefined) db.settings.defaultUpiQr = ENV_DEFAULT_UPI_QR;
 function defaultUpi(){ return {upiId: db.settings.defaultUpiId || ENV_DEFAULT_UPI_ID, upiQr: db.settings.defaultUpiQr || ENV_DEFAULT_UPI_QR}; }
-function clientRates(c){ const r=c && c.rates || {}; return { BW_A4:Number(r.BW_A4 ?? RATES.BW_A4), COLOR_A4:Number(r.COLOR_A4 ?? RATES.COLOR_A4), BW_A3:Number(r.BW_A3 ?? RATES.BW_A3), COLOR_A3:Number(r.COLOR_A3 ?? RATES.COLOR_A3) }; }
 const adminSessions = new Set();
 
 function save(){
@@ -66,7 +65,7 @@ app.get('/api/v1/public/client/:clientId', (req,res)=>{
   if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
   const base=(process.env.PUBLIC_URL||`${req.protocol}://${req.get('host')}`).replace(/\/$/,'');
   const uploadUrl=`${base}/upload/${encodeURIComponent(c.id)}`;
-  res.json({ok:true,clientId:c.id,deviceName:c.deviceName,printers:c.printers||[],uploadUrl,online:!!(c.lastSeen && Date.now()-Date.parse(c.lastSeen)<90000),upiId:c.upiId||defaultUpi().upiId,upiQr:c.upiQr||defaultUpi().upiQr,rates:clientRates(c)});
+  res.json({ok:true,clientId:c.id,deviceName:c.deviceName,printers:c.printers||[],uploadUrl,online:!!(c.lastSeen && Date.now()-Date.parse(c.lastSeen)<90000),upiId:c.upiId||defaultUpi().upiId,upiQr:c.upiQr||defaultUpi().upiQr,rates:RATES});
 });
 
 app.get('/api/v1/public/client/:clientId/qr.svg', async (req,res)=>{
@@ -150,7 +149,7 @@ app.post('/api/v1/public/client/:clientId/upload',(req,res)=>{
   if(buf.length>20*1024*1024) return res.status(413).json({ok:false,error:'file_too_large'});
   const safe=path.basename(String(fileName)).replace(/[^a-zA-Z0-9._-]/g,'_');
   const disk=id('file')+'_'+safe; fs.writeFileSync(path.join(JOB_DIR,disk),buf);
-  const rate=Number(clientRates(c)[`${pt}_${ps}`]||0); const amount=Number((rate*copyCount).toFixed(2));
+  const rate=Number(RATES[`${pt}_${ps}`]||0); const amount=Number((rate*copyCount).toFixed(2));
   const j={id:id('job'),clientId:c.id,printerName:String((c.printers&&c.printers[0])||'').slice(0,150),fileName:safe,fileNameOnDisk:disk,status:'PAYMENT_PENDING',paymentStatus:'PENDING',paymentReference:'',amount,rate,printAuthorized:false,message:'Complete UPI payment. Return to this page and press I HAVE PAID.',printType:pt,paperSize:ps,copies:copyCount,source:'customer_qr',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
   db.jobs.unshift(j); log('job','Customer print job created; payment pending',{jobId:j.id,clientId:c.id,amount,printType:pt,paperSize:ps,copies:copyCount}); save();
   const defs=defaultUpi(); const upiId=c.upiId||defs.upiId, upiQr=c.upiQr||defs.upiQr;
@@ -189,28 +188,6 @@ app.post('/api/v1/admin/clients/:id/payment-settings',adminAuth,(req,res)=>{
     c.upiQr=qr;
   }
   save(); res.json({ok:true,clientId:c.id,upiId:c.upiId||defaultUpi().upiId,upiQr:c.upiQr||defaultUpi().upiQr});
-});
-
-app.get('/api/v1/admin/clients/:id/pricing',adminAuth,(req,res)=>{
-  const c=db.clients.find(x=>x.id===req.params.id);
-  if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
-  res.json({ok:true,clientId:c.id,rates:clientRates(c)});
-});
-
-app.post('/api/v1/admin/clients/:id/pricing',adminAuth,(req,res)=>{
-  const c=db.clients.find(x=>x.id===req.params.id);
-  if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
-  const keys=['BW_A4','COLOR_A4','BW_A3','COLOR_A3'];
-  const next=clientRates(c);
-  for(const k of keys){
-    if(req.body?.[k]!==undefined){
-      const n=Number(req.body[k]);
-      if(!Number.isFinite(n) || n<0 || n>100000) return res.status(400).json({ok:false,error:'invalid_price_'+k});
-      next[k]=Number(n.toFixed(2));
-    }
-  }
-  c.rates=next; save();
-  res.json({ok:true,clientId:c.id,rates:clientRates(c)});
 });
 
 app.get('/api/v1/admin/default-payment-settings',adminAuth,(req,res)=>{
