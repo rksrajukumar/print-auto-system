@@ -10,7 +10,7 @@ const DATA_DIR = process.env.DATA_DIR || path.join(__dirname, 'data');
 const JOB_DIR = path.join(DATA_DIR, 'jobs');
 const DB_FILE = path.join(DATA_DIR, 'db.json');
 const ADMIN_USER = process.env.ADMIN_USER || 'admin';
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'CHANGE_ME';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin12345';
 const CLIENT_KEY_NAME = process.env.CLIENT_KEY_NAME || 'rksrajukumar';
 // Accept the Render environment variable shown in the user's dashboard.
 // Preferred name is CLIENT_REGISTRATION_KEY; rksrajukumar is supported as an alias.
