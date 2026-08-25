@@ -1,30 +1,17 @@
-# AUTO PRINT SERVER — FINAL DASHBOARD + CLIENT CONNECTION
+# AUTO PRINT SERVER — CLIENT REGISTRATION FINAL
 
-## Client registration
-The Windows Client EXE contains the server URL and registration key flow. On installation it calls:
-`POST /api/v1/client/register`
+## Registration credentials
+- Client Key: `rksrajukumar`
+- Registration Value: `RK-AutoPrint-2026-8xK9`
 
-The server records and displays in the Admin Dashboard:
-- unique Client ID
-- device ID
-- PC name
-- hostname
-- Windows platform
-- detected/default printer list
-- registration time and count
-- last heartbeat
-- client IP
+Render Environment Variables:
+- `CLIENT_KEY_NAME=rksrajukumar`
+- `CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
+- `ADMIN_USER=<your admin username>`
+- `ADMIN_PASSWORD=<your admin password>`
 
-The client then sends heartbeat updates. The dashboard refreshes every 5 seconds and marks a client Online when the last heartbeat is within 90 seconds.
+The registration endpoint is `POST /api/v1/client/register` and requires BOTH `clientKey` and `registrationKey` to match exactly.
 
-## Required Render environment variables
-`CLIENT_REGISTRATION_KEY=CLIENT_REGISTRATION_KEY`
-`ADMIN_USER=<your admin username>`
-`ADMIN_PASSWORD=<your admin password>`
+The server returns a client ID and client token. The client then uses the token for heartbeat and job APIs.
 
-Use a persistent disk for `DATA_DIR` in production so the JSON database survives service recreation.
-
-## Dashboard
-The included webpage is a dark Admin Dashboard styled after the supplied reference image. It is responsive and uses live API data rather than hard-coded client information.
-
-No separate server-information/config file is required on the client PC; the connection details are embedded in the Client EXE.
+No separate server-information file is required on the installed client PC; the connection URL and registration credentials are embedded in the client executable in the companion Client ZIP.
