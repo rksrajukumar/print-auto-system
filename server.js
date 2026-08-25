@@ -2,6 +2,7 @@ const express = require('express');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const QRCode = require('qrcode');
 
 const app = express();
 const PORT = Number(process.env.PORT || 10000);
@@ -43,6 +44,26 @@ function adminAuth(req,res,next){
 }
 app.use(express.json({limit:'25mb'}));
 app.use(express.static(path.join(__dirname,'public')));
+
+// Public customer upload page: each registered PC gets its own link/QR.
+app.get('/upload/:clientId',(req,res)=>res.sendFile(path.join(__dirname,'public','upload.html')));
+
+app.get('/api/v1/public/client/:clientId', (req,res)=>{
+  const c=db.clients.find(x=>x.id===req.params.clientId && x.active);
+  if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
+  const base=(process.env.PUBLIC_URL||`${req.protocol}://${req.get('host')}`).replace(/\/$/,'');
+  const uploadUrl=`${base}/upload/${encodeURIComponent(c.id)}`;
+  res.json({ok:true,clientId:c.id,deviceName:c.deviceName,printers:c.printers||[],uploadUrl,online:!!(c.lastSeen && Date.now()-Date.parse(c.lastSeen)<90000)});
+});
+
+app.get('/api/v1/public/client/:clientId/qr.svg', async (req,res)=>{
+  const c=db.clients.find(x=>x.id===req.params.clientId && x.active);
+  if(!c) return res.status(404).type('text/plain').send('Client not found');
+  const base=(process.env.PUBLIC_URL||`${req.protocol}://${req.get('host')}`).replace(/\/$/,'');
+  const uploadUrl=`${base}/upload/${encodeURIComponent(c.id)}`;
+  try { const svg=await QRCode.toString(uploadUrl,{type:'svg',margin:2,width:320,errorCorrectionLevel:'M'}); res.type('image/svg+xml').send(svg); }
+  catch(e){ res.status(500).type('text/plain').send('QR generation failed'); }
+});
 
 app.get('/health',(req,res)=>res.json({ok:true,status:'online',service:'auto-print-server',time:new Date().toISOString()}));
 
@@ -100,6 +121,24 @@ app.post('/api/v1/client/jobs/:id/status',clientAuth,(req,res)=>{
   j.status=req.body.status; j.message=String(req.body.message||'').slice(0,500); j.updatedAt=new Date().toISOString();
   log('job','Job status updated',{jobId:j.id,status:j.status,clientId:req.client.id}); save();
   res.json({ok:true});
+});
+
+app.post('/api/v1/public/client/:clientId/upload',(req,res)=>{
+  const c=db.clients.find(x=>x.id===req.params.clientId && x.active);
+  if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
+  const {fileName,fileBase64,printType='BW',paperSize='A4',copies=1}=req.body||{};
+  if(!fileName || !fileBase64) return res.status(400).json({ok:false,error:'file_required'});
+  if(!['BW','COLOR'].includes(String(printType).toUpperCase())) return res.status(400).json({ok:false,error:'invalid_print_type'});
+  if(!['A4','A3'].includes(String(paperSize).toUpperCase())) return res.status(400).json({ok:false,error:'invalid_paper_size'});
+  const copyCount=Math.max(1,Math.min(100,Number(copies)||1));
+  let buf; try { buf=Buffer.from(String(fileBase64),'base64'); } catch(e){ return res.status(400).json({ok:false,error:'invalid_file'}); }
+  if(!buf.length) return res.status(400).json({ok:false,error:'empty_file'});
+  if(buf.length>20*1024*1024) return res.status(413).json({ok:false,error:'file_too_large'});
+  const safe=path.basename(String(fileName)).replace(/[^a-zA-Z0-9._-]/g,'_');
+  const disk=id('file')+'_'+safe; fs.writeFileSync(path.join(JOB_DIR,disk),buf);
+  const j={id:id('job'),clientId:c.id,printerName:String((c.printers&&c.printers[0])||'').slice(0,150),fileName:safe,fileNameOnDisk:disk,status:'QUEUED',message:'Customer upload received; waiting for client printer.',printType:String(printType).toUpperCase(),paperSize:String(paperSize).toUpperCase(),copies:copyCount,source:'customer_qr',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  db.jobs.unshift(j); log('job','Customer print job created',{jobId:j.id,clientId:c.id,fileName:safe,printType:j.printType,paperSize:j.paperSize,copies:j.copies}); save();
+  res.json({ok:true,jobId:j.id,status:j.status,message:'Document uploaded. It has been sent to the selected client PC print queue.'});
 });
 
 app.get('/api/v1/admin/overview',adminAuth,(req,res)=>{
