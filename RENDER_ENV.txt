@@ -1,10 +1,7 @@
+# This file is a reference only; Render Environment Variables must be set in Render.
+rksrajukumar=RK-AutoPrint-2026-8xK9
 CLIENT_KEY_NAME=rksrajukumar
-CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9
+# Optional canonical alias (either this or rksrajukumar is accepted):
+# CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9
 ADMIN_USER=admin
 ADMIN_PASSWORD=CHANGE_ME
-DEFAULT_UPI_ID=9097676711@upi
-DEFAULT_UPI_QR=
-RATE_BW_A4=5
-RATE_COLOR_A4=10
-RATE_BW_A3=10
-RATE_COLOR_A3=20
