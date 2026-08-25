@@ -1,21 +1,22 @@
-# AUTO PRINT SERVER — FINAL CLIENT REGISTRATION
+# Auto Print Server — Customer QR Upload
 
-## Registration credentials
+Client registration remains:
 - Client Key: `rksrajukumar`
 - Registration Value: `RK-AutoPrint-2026-8xK9`
+- Render variable accepted: `rksrajukumar` or `CLIENT_REGISTRATION_KEY`
 
-## Render Environment
-The server accepts the registration value from either of these environment variable names:
-- `rksrajukumar=RK-AutoPrint-2026-8xK9` **(matches the Render screen shown)**
-- `CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9` (preferred/canonical name)
+## Customer upload links
+After a client registers, its admin record contains a unique client ID. The customer URL is:
+`https://print-auto-system-1.onrender.com/upload/<CLIENT_ID>`
 
-Also set:
-- `CLIENT_KEY_NAME=rksrajukumar`
-- `ADMIN_USER=<your admin username>`
-- `ADMIN_PASSWORD=<your admin password>`
+The dashboard QR section can use:
+`/api/v1/public/client/<CLIENT_ID>/qr.svg`
 
-The registration endpoint is `POST /api/v1/client/register` and requires BOTH `clientKey` and `registrationKey` to match exactly.
+A customer upload creates a `QUEUED` job for that client PC and selected/default printer. The Windows client must poll the client jobs endpoint and print queued jobs for automatic printing.
 
-The server returns a client ID and client token. The client then uses the token for heartbeat and job APIs.
+## Render
+Set the environment variable shown in your Render dashboard:
+`rksrajukumar=RK-AutoPrint-2026-8xK9`
 
-No separate server-information file is required on the installed client PC; the connection URL and registration credentials are embedded in the client executable.
+Recommended canonical variable:
+`CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
