@@ -15,6 +15,14 @@ const CLIENT_KEY_NAME = process.env.CLIENT_KEY_NAME || 'rksrajukumar';
 // Accept the Render environment variable shown in the user's dashboard.
 // Preferred name is CLIENT_REGISTRATION_KEY; rksrajukumar is supported as an alias.
 const REG_KEY = process.env.CLIENT_REGISTRATION_KEY || process.env.rksrajukumar || '';
+const DEFAULT_UPI_ID = process.env.DEFAULT_UPI_ID || '';
+const DEFAULT_UPI_QR = process.env.DEFAULT_UPI_QR || '';
+const RATES = {
+  BW_A4: Number(process.env.RATE_BW_A4 || 5),
+  COLOR_A4: Number(process.env.RATE_COLOR_A4 || 10),
+  BW_A3: Number(process.env.RATE_BW_A3 || 10),
+  COLOR_A3: Number(process.env.RATE_COLOR_A3 || 20)
+};
 if (!REG_KEY) { console.error('Registration key is required: set CLIENT_REGISTRATION_KEY or rksrajukumar'); process.exit(1); }
 
 fs.mkdirSync(JOB_DIR, { recursive: true });
@@ -53,7 +61,7 @@ app.get('/api/v1/public/client/:clientId', (req,res)=>{
   if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
   const base=(process.env.PUBLIC_URL||`${req.protocol}://${req.get('host')}`).replace(/\/$/,'');
   const uploadUrl=`${base}/upload/${encodeURIComponent(c.id)}`;
-  res.json({ok:true,clientId:c.id,deviceName:c.deviceName,printers:c.printers||[],uploadUrl,online:!!(c.lastSeen && Date.now()-Date.parse(c.lastSeen)<90000)});
+  res.json({ok:true,clientId:c.id,deviceName:c.deviceName,printers:c.printers||[],uploadUrl,online:!!(c.lastSeen && Date.now()-Date.parse(c.lastSeen)<90000),upiId:c.upiId||DEFAULT_UPI_ID,upiQr:c.upiQr||DEFAULT_UPI_QR,rates:RATES});
 });
 
 app.get('/api/v1/public/client/:clientId/qr.svg', async (req,res)=>{
@@ -101,7 +109,7 @@ app.post('/api/v1/client/heartbeat',clientAuth,(req,res)=>{
 });
 
 app.get('/api/v1/client/jobs',clientAuth,(req,res)=>{
-  const jobs=db.jobs.filter(j=>j.clientId===req.client.id && ['QUEUED','RETRY'].includes(j.status)).slice(0,10);
+  const jobs=db.jobs.filter(j=>j.clientId===req.client.id && j.printAuthorized===true && ['QUEUED','RETRY'].includes(j.status)).slice(0,10);
   res.json({ok:true,jobs:jobs.map(({fileData,...j})=>j)});
 });
 
@@ -128,23 +136,55 @@ app.post('/api/v1/public/client/:clientId/upload',(req,res)=>{
   if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
   const {fileName,fileBase64,printType='BW',paperSize='A4',copies=1}=req.body||{};
   if(!fileName || !fileBase64) return res.status(400).json({ok:false,error:'file_required'});
-  if(!['BW','COLOR'].includes(String(printType).toUpperCase())) return res.status(400).json({ok:false,error:'invalid_print_type'});
-  if(!['A4','A3'].includes(String(paperSize).toUpperCase())) return res.status(400).json({ok:false,error:'invalid_paper_size'});
+  const pt=String(printType).toUpperCase(), ps=String(paperSize).toUpperCase();
+  if(!['BW','COLOR'].includes(pt)) return res.status(400).json({ok:false,error:'invalid_print_type'});
+  if(!['A4','A3'].includes(ps)) return res.status(400).json({ok:false,error:'invalid_paper_size'});
   const copyCount=Math.max(1,Math.min(100,Number(copies)||1));
   let buf; try { buf=Buffer.from(String(fileBase64),'base64'); } catch(e){ return res.status(400).json({ok:false,error:'invalid_file'}); }
   if(!buf.length) return res.status(400).json({ok:false,error:'empty_file'});
   if(buf.length>20*1024*1024) return res.status(413).json({ok:false,error:'file_too_large'});
   const safe=path.basename(String(fileName)).replace(/[^a-zA-Z0-9._-]/g,'_');
   const disk=id('file')+'_'+safe; fs.writeFileSync(path.join(JOB_DIR,disk),buf);
-  const j={id:id('job'),clientId:c.id,printerName:String((c.printers&&c.printers[0])||'').slice(0,150),fileName:safe,fileNameOnDisk:disk,status:'QUEUED',message:'Customer upload received; waiting for client printer.',printType:String(printType).toUpperCase(),paperSize:String(paperSize).toUpperCase(),copies:copyCount,source:'customer_qr',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
-  db.jobs.unshift(j); log('job','Customer print job created',{jobId:j.id,clientId:c.id,fileName:safe,printType:j.printType,paperSize:j.paperSize,copies:j.copies}); save();
-  res.json({ok:true,jobId:j.id,status:j.status,message:'Document uploaded. It has been sent to the selected client PC print queue.'});
+  const rate=Number(RATES[`${pt}_${ps}`]||0); const amount=Number((rate*copyCount).toFixed(2));
+  const j={id:id('job'),clientId:c.id,printerName:String((c.printers&&c.printers[0])||'').slice(0,150),fileName:safe,fileNameOnDisk:disk,status:'PAYMENT_PENDING',paymentStatus:'PENDING',paymentReference:'',amount,rate,printAuthorized:false,message:'Complete UPI payment. Return to this page and press I HAVE PAID.',printType:pt,paperSize:ps,copies:copyCount,source:'customer_qr',createdAt:new Date().toISOString(),updatedAt:new Date().toISOString()};
+  db.jobs.unshift(j); log('job','Customer print job created; payment pending',{jobId:j.id,clientId:c.id,amount,printType:pt,paperSize:ps,copies:copyCount}); save();
+  const upiId=c.upiId||DEFAULT_UPI_ID, upiQr=c.upiQr||DEFAULT_UPI_QR;
+  const upiLink=upiId?`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(c.deviceName||'Auto Print')}&am=${amount.toFixed(2)}&cu=INR`:''; res.json({ok:true,jobId:j.id,status:j.status,paymentStatus:j.paymentStatus,amount,upiId,upiQr,upiLink,printNow:false,message:'Complete UPI payment. After returning to this page, press I HAVE PAID.'});
+});
+
+app.get('/api/v1/public/job/:jobId',(req,res)=>{
+  const j=db.jobs.find(x=>x.id===req.params.jobId);
+  if(!j || j.source!=='customer_qr') return res.status(404).json({ok:false,error:'job_not_found'});
+  res.json({ok:true,jobId:j.id,clientId:j.clientId,fileName:j.fileName,amount:j.amount,paymentStatus:j.paymentStatus,status:j.status,printAuthorized:!!j.printAuthorized,paymentReference:j.paymentReference||'',message:j.message||''});
+});
+
+app.post('/api/v1/public/job/:jobId/i-have-paid',(req,res)=>{
+  const j=db.jobs.find(x=>x.id===req.params.jobId && x.source==='customer_qr');
+  if(!j) return res.status(404).json({ok:false,error:'job_not_found'});
+  j.paymentStatus='CUSTOMER_MARKED_PAID'; j.status='PAYMENT_REPORTED'; j.paymentReference=''; j.message='Customer marked payment as completed.'; j.updatedAt=new Date().toISOString(); save();
+  res.json({ok:true,paymentStatus:j.paymentStatus,printNow:false,message:'Payment marked. Press PRINT NOW to send the job to the shop computer.'});
+});
+
+app.post('/api/v1/public/job/:jobId/print-now',(req,res)=>{
+  const j=db.jobs.find(x=>x.id===req.params.jobId && x.source==='customer_qr');
+  if(!j) return res.status(404).json({ok:false,error:'job_not_found'});
+  if(j.paymentStatus!=='CUSTOMER_MARKED_PAID') return res.status(403).json({ok:false,error:'payment_not_marked_paid',printNow:false});
+  j.printAuthorized=true; j.status='QUEUED'; j.message='PRINT NOW confirmed; waiting for client printer.'; j.updatedAt=new Date().toISOString(); save();
+  res.json({ok:true,printNow:true,status:j.status});
+});
+
+app.post('/api/v1/admin/clients/:id/payment-settings',adminAuth,(req,res)=>{
+  const c=db.clients.find(x=>x.id===req.params.id);
+  if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
+  if(req.body?.upiId!==undefined) c.upiId=String(req.body.upiId||'').trim().slice(0,120);
+  if(req.body?.upiQr!==undefined) c.upiQr=String(req.body.upiQr||'').slice(0,2000000);
+  save(); res.json({ok:true,clientId:c.id,upiId:c.upiId||DEFAULT_UPI_ID,upiQr:c.upiQr||DEFAULT_UPI_QR});
 });
 
 app.get('/api/v1/admin/overview',adminAuth,(req,res)=>{
   const onlineCut=Date.now()-90000;
   const online=db.clients.filter(c=>c.lastSeen && Date.parse(c.lastSeen)>=onlineCut).length;
-  res.json({ok:true,stats:{clients:db.clients.length,online,offline:db.clients.length-online,printers:db.clients.reduce((n,c)=>n+c.printers.length,0),jobs:db.jobs.length,completed:db.jobs.filter(j=>j.status==='COMPLETED').length,failed:db.jobs.filter(j=>j.status==='FAILED').length},clients:db.clients,jobs:db.jobs.slice(0,100),logs:db.logs.slice(0,100)});
+  res.json({ok:true,stats:{clients:db.clients.length,online,offline:db.clients.length-online,printers:db.clients.reduce((n,c)=>n+c.printers.length,0),jobs:db.jobs.length,completed:db.jobs.filter(j=>j.status==='COMPLETED').length,failed:db.jobs.filter(j=>j.status==='FAILED').length,paymentPending:db.jobs.filter(j=>j.paymentStatus==='PENDING').length,paymentReported:db.jobs.filter(j=>j.paymentStatus==='CUSTOMER_MARKED_PAID').length},clients:db.clients,jobs:db.jobs.slice(0,100),logs:db.logs.slice(0,100)});
 });
 
 app.post('/api/v1/admin/jobs',adminAuth,(req,res)=>{
