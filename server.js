@@ -161,6 +161,21 @@ app.post('/api/v1/admin/jobs',adminAuth,(req,res)=>{
 
 app.post('/api/v1/admin/clients/:id/disable',adminAuth,(req,res)=>{const c=db.clients.find(x=>x.id===req.params.id);if(!c)return res.status(404).json({ok:false});c.active=false;save();res.json({ok:true});});
 
+// Admin: update the UPI details used for a specific client/PC.
+app.post('/api/v1/admin/clients/:id/upi',adminAuth,(req,res)=>{
+  const c=db.clients.find(x=>x.id===req.params.id && x.active);
+  if(!c) return res.status(404).json({ok:false,error:'client_not_found'});
+  const upiId=String(req.body?.upiId||'').trim().slice(0,120);
+  const upiNumber=String(req.body?.upiNumber||'').trim().slice(0,40);
+  if(!upiId && !upiNumber) return res.status(400).json({ok:false,error:'upi_required'});
+  c.upiId=upiId;
+  c.upiNumber=upiNumber;
+  c.updatedAt=new Date().toISOString();
+  log('client','Client UPI updated',{clientId:c.id,deviceName:c.deviceName,upiId:c.upiId,upiNumber:c.upiNumber});
+  save();
+  res.json({ok:true,client:{id:c.id,deviceName:c.deviceName,upiId:c.upiId,upiNumber:c.upiNumber}});
+});
+
 app.get('*',(req,res)=>res.sendFile(path.join(__dirname,'public','index.html')));
 
 app.listen(PORT,'0.0.0.0',()=>console.log(`Auto Print Server listening on ${PORT}`));
