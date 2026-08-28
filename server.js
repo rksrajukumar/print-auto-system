@@ -88,7 +88,9 @@ app.get('/api/v1/public/payment/default/qr.svg', async (req,res)=>{
   const upiId=String(req.query.upiId||db.defaultPayment.upiId||'').trim();
   if(!upiId) return res.status(400).type('text/plain').send('UPI not configured');
   const name=encodeURIComponent(String(db.defaultPayment.businessName||'Auto Print Shop').slice(0,80));
-  const uri=`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${name}&cu=INR`;
+  const amount=Number(req.query.amount||0);
+  const amt=amount>0?`&am=${amount.toFixed(2)}`:'';
+  const uri=`upi://pay?pa=${encodeURIComponent(upiId)}&pn=${name}${amt}&cu=INR`;
   try { const svg=await QRCode.toString(uri,{type:'svg',margin:2,width:320,errorCorrectionLevel:'M'}); res.type('image/svg+xml').send(svg); }
   catch(e){ res.status(500).type('text/plain').send('Payment QR generation failed'); }
 });
