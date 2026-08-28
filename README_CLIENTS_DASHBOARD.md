@@ -1,24 +1,20 @@
-# Auto Print Server — Clients / PCs Dashboard
+# Auto Print Server — Clients Dashboard + Simple Public Upload
 
-Added a working Clients / PCs dashboard to the existing Express server.
+This package keeps the supplied `server.js` unchanged.
 
-## Included
-- Client list with Active / Offline status
-- Client ID, PC name, last seen and printer information
-- Per-client QR preview
-- **Download QR** button using the existing QR endpoint
-- **Update UPI** modal for each client
-- UPI ID + optional UPI Number saved per client
-- View client details
-- Disable client
-- Search, status filter, refresh and CSV export
+## Public customer flow
+1. Open `/upload/<CLIENT_ID>` from the client QR.
+2. Select one or multiple files (PDF/JPG/PNG/DOC/DOCX, max 20 MB each).
+3. Choose B/W or Colour, paper size and copies.
+4. See the calculated amount and scan the client/default UPI QR.
+5. Confirm payment and tap **Payment Done & Submit for Printing**.
+6. Each selected file is submitted to the existing public upload endpoint and becomes a queued print job.
 
-## API added
-`POST /api/v1/admin/clients/:id/upi`
+## Dashboard
+- Clients / PCs list
+- Client UPI edit
+- Client QR download
+- Default (Main) Payment edit
+- Default payment QR preview
 
-Body:
-```json
-{"upiId":"shop@upi","upiNumber":"9876543210"}
-```
-
-The existing registration, heartbeat, jobs and QR endpoints remain in place.
+No changes were made to the server.js file in this version.
