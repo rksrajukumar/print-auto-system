@@ -1,22 +1,46 @@
-# Auto Print Server — Customer QR Upload
+# Auto Print Server - Final
 
-Client registration remains:
-- Client Key: `rksrajukumar`
-- Registration Value: `RK-AutoPrint-2026-8xK9`
-- Render variable accepted: `rksrajukumar` or `CLIENT_REGISTRATION_KEY`
+Production-ready server package for the Auto Print client/customer QR print workflow.
 
-## Customer upload links
-After a client registers, its admin record contains a unique client ID. The customer URL is:
-`https://print-auto-system-1.onrender.com/upload/<CLIENT_ID>`
+## Render settings
 
-The dashboard QR section can use:
-`/api/v1/public/client/<CLIENT_ID>/qr.svg`
+- Runtime: Docker
+- Dockerfile: included
+- Port: `10000` (Render may inject `PORT`; the server honors it)
+- Start command is provided by the Dockerfile.
 
-A customer upload creates a `QUEUED` job for that client PC and selected/default printer. The Windows client must poll the client jobs endpoint and print queued jobs for automatic printing.
+### Required environment variables
 
-## Render
-Set the environment variable shown in your Render dashboard:
-`rksrajukumar=RK-AutoPrint-2026-8xK9`
+- `ADMIN_USER`
+- `ADMIN_PASSWORD`
+- `CLIENT_KEY_NAME` = `rksrajukumar`
+- `CLIENT_REGISTRATION_KEY` = your private registration key
 
-Recommended canonical variable:
-`CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
+Optional:
+
+- `PUBLIC_URL` = `https://print-auto-system-1.onrender.com`
+- `DATA_DIR` = `./data`
+- `MAX_JOB_RETRIES` = `3`
+- `FAILED_FILE_RETENTION_MS` = `86400000`
+- `CLEANUP_INTERVAL_MS` = `900000`
+
+Do not commit real passwords or registration keys to GitHub.
+
+## Client connection
+
+The Windows client should use:
+
+- Server URL: `https://print-auto-system-1.onrender.com`
+- Client key: `rksrajukumar`
+- Registration key: the same value configured as `CLIENT_REGISTRATION_KEY`
+- Poll interval: 5 seconds
+
+The server provides client registration, heartbeat, job polling, file download, print-status updates, customer upload, QR generation, payment QR, admin overview, retry and cancellation APIs.
+
+## Health check
+
+`GET /health` must return JSON with `ok: true`.
+
+## Important Render note
+
+The default `./data` directory is local to the running instance. If client/job data must survive Render restarts or redeploys, attach a persistent disk and set `DATA_DIR` to its mount path.
