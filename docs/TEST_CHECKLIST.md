@@ -1,0 +1,27 @@
+# Server acceptance checklist
+
+- [ ] Health endpoint
+- [ ] Admin login
+- [ ] Client registration with valid credentials
+- [ ] Invalid registration rejected
+- [ ] Heartbeat updates printers and lastSeen
+- [ ] Customer client lookup
+- [ ] Upload rejects missing fields
+- [ ] Upload rejects unsupported print type
+- [ ] Upload rejects unsupported paper size
+- [ ] Upload rejects >20 MiB
+- [ ] Upload creates QUEUED job
+- [ ] Amount calculated consistently
+- [ ] Client receives only its own QUEUED/RETRY jobs
+- [ ] File download requires client token
+- [ ] DOWNLOADED status accepted
+- [ ] PRINTING status accepted
+- [ ] COMPLETED deletes file
+- [ ] FAILED triggers retry while retry budget remains
+- [ ] Final FAILED is retained only for configured retention period
+- [ ] CANCELLED deletes file
+- [ ] Admin cancel works
+- [ ] Admin retry works
+- [ ] Customer job status endpoint works
+- [ ] Orphan cleanup removes unreferenced files
+- [ ] Existing DB is backward compatible
