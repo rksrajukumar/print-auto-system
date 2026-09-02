@@ -18,13 +18,14 @@ const REG_KEY = process.env.CLIENT_REGISTRATION_KEY || process.env.rksrajukumar 
 if (!REG_KEY) { console.error('Registration key is required: set CLIENT_REGISTRATION_KEY or rksrajukumar'); process.exit(1); }
 
 fs.mkdirSync(JOB_DIR, { recursive: true });
-if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({clients:[], jobs:[], logs:[], defaultPayment:{upiId:'',upiNumber:'',businessName:'Auto Print Shop',baseAmount:10,bwRate:1,colorRate:5,minimumAmount:10}}, null, 2));
+if (!fs.existsSync(DB_FILE)) fs.writeFileSync(DB_FILE, JSON.stringify({clients:[], jobs:[], logs:[], defaultPayment:{upiId:'',upiNumber:'',businessName:'Auto Print Shop',baseAmount:10,bwRate:1,colorRate:5,minimumAmount:10}, adminAuth:{}}, null, 2));
 let db = JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
 // Backward-compatible defaults for existing db.json files.
 db.clients = Array.isArray(db.clients) ? db.clients : [];
 db.jobs = Array.isArray(db.jobs) ? db.jobs : [];
 db.logs = Array.isArray(db.logs) ? db.logs : [];
 db.defaultPayment = Object.assign({upiId:'',upiNumber:'',businessName:'Auto Print Shop',baseAmount:10,bwRate:1,colorRate:5,minimumAmount:10}, db.defaultPayment || {});
+db.adminAuth = db.adminAuth || {};
 const adminSessions = new Set();
 
 function save(){
@@ -143,10 +144,29 @@ app.get('/api/v1/public/payment/default/qr.svg', async (req,res)=>{
 
 app.get('/health',(req,res)=>res.json({ok:true,status:'online',service:'auto-print-server',time:new Date().toISOString()}));
 
+function verifyAdminPassword(password){
+  if(db.adminAuth?.hash && db.adminAuth?.salt){
+    const hash=crypto.scryptSync(String(password||''),db.adminAuth.salt,64).toString('hex');
+    return crypto.timingSafeEqual(Buffer.from(hash,'hex'),Buffer.from(db.adminAuth.hash,'hex'));
+  }
+  return String(password||'')===ADMIN_PASSWORD;
+}
 app.post('/api/v1/admin/login',(req,res)=>{
-  if(req.body?.username!==ADMIN_USER || req.body?.password!==ADMIN_PASSWORD) return res.status(401).json({ok:false,error:'invalid_credentials'});
+  if(req.body?.username!==ADMIN_USER || !verifyAdminPassword(req.body?.password)) return res.status(401).json({ok:false,error:'invalid_credentials'});
   const token=crypto.randomBytes(32).toString('hex'); adminSessions.add(token);
   res.json({ok:true,token});
+});
+
+
+app.post('/api/v1/admin/change-password',adminAuth,(req,res)=>{
+  const {currentPassword,newPassword}=req.body||{};
+  if(!verifyAdminPassword(currentPassword)) return res.status(400).json({ok:false,error:'current_password_incorrect'});
+  if(typeof newPassword!=='string' || newPassword.length<8) return res.status(400).json({ok:false,error:'password_minimum_8_characters'});
+  const salt=crypto.randomBytes(16).toString('hex');
+  const hash=crypto.scryptSync(newPassword,salt,64).toString('hex');
+  db.adminAuth={salt,hash,updatedAt:new Date().toISOString()};
+  adminSessions.clear(); save(); log('security','Admin password changed',{}); save();
+  res.json({ok:true,message:'Password changed. Please login again.'});
 });
 
 app.post('/api/v1/client/register',(req,res)=>{
