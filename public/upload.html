@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Print Document — Auto Print</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f4f7fb;color:#182230;font-family:Inter,Segoe UI,Arial,sans-serif}.top{background:#071d31;color:#fff;padding:16px 18px;box-shadow:0 2px 10px #0002}.brand{max-width:760px;margin:auto;font-weight:800;font-size:17px}.brand small{display:block;font-size:11px;font-weight:500;opacity:.75;margin-top:3px}.wrap{max-width:760px;margin:20px auto;padding:0 14px}.card{background:#fff;border:1px solid #e2e8f0;border-radius:16px;padding:20px;margin-bottom:14px;box-shadow:0 7px 25px #10243a0a}.head{display:flex;justify-content:space-between;gap:12px;align-items:center}.head h1{font-size:23px;margin:0}.muted{font-size:12px;color:#697789}.shop{margin-top:5px}.online{color:#087a42;font-weight:700}.offline{color:#c52d35;font-weight:700}.step{display:flex;align-items:center;gap:9px;font-size:16px;font-weight:800;margin-bottom:14px}.num{width:27px;height:27px;border-radius:50%;background:#0a9650;color:#fff;display:grid;place-items:center;font-size:13px}.upload{border:2px dashed #cbd7e4;border-radius:13px;padding:22px;text-align:center;background:#fbfdff;cursor:pointer}.upload:hover{border-color:#0a9650}.upload input{display:none}.upload b{display:block;margin-bottom:5px}.filelist{margin-top:10px}.file{display:flex;justify-content:space-between;gap:10px;padding:10px 12px;border:1px solid #e3e9f0;border-radius:9px;margin-top:7px;font-size:12px}.file span:last-child{color:#68778a}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.field label{display:block;font-size:11px;font-weight:700;margin-bottom:6px}.field select,.field input{width:100%;padding:11px;border:1px solid #d7e0e9;border-radius:9px;background:#fff;font-size:14px}.amount{display:flex;justify-content:space-between;align-items:center;background:#f0f8f3;border:1px solid #cdebd9;border-radius:12px;padding:13px 15px;margin-top:14px}.amount strong{font-size:24px;color:#087a42}.pay{display:grid;grid-template-columns:190px 1fr;gap:18px;align-items:center}.qr{width:180px;height:180px;border:1px solid #dce4ec;border-radius:10px;padding:5px;background:#fff}.upi{font-size:15px;font-weight:800;word-break:break-all}.paynote{font-size:12px;color:#667589;line-height:1.55;margin-top:7px}.btn{width:100%;border:0;border-radius:10px;padding:13px 15px;font-weight:800;font-size:14px;cursor:pointer}.primary{background:#0a9650;color:#fff}.secondary{background:#eef3f8;color:#233448}.btn:disabled{opacity:.5;cursor:not-allowed}.check{display:flex;gap:9px;align-items:flex-start;font-size:12px;color:#405065;margin:14px 0}.check input{margin-top:2px}.notice,.success,.error{padding:11px 12px;border-radius:9px;font-size:12px;line-height:1.45}.notice{background:#eef6ff;color:#315a8c}.success{background:#eaf8ef;color:#087a42}.error{background:#fff0f0;color:#b4232b}.hidden{display:none!important}.actions{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}.small{font-size:11px}@media(max-width:600px){.grid,.pay{grid-template-columns:1fr}.pay{text-align:center}.qr{margin:auto}.actions{grid-template-columns:1fr}.head{align-items:flex-start}}
+</style>
+</head>
+<body>
+<div class="top"><div class="brand">🖨️ AUTO PRINT SERVER<small>Simple & Secure Customer Printing</small></div></div>
+<div class="wrap">
+  <div class="card">
+    <div class="head"><div><h1>Upload & Print</h1><div id="shop" class="muted shop">Loading client...</div></div><div id="status" class="muted">● Checking...</div></div>
+  </div>
+
+  <div class="card" id="uploadCard">
+    <div class="step"><span class="num">1</span> Select Document</div>
+    <label class="upload" for="files"><b>📄 Tap to choose file</b><span class="muted">PDF, JPG, PNG, DOC or DOCX • Max 20 MB each</span><input id="files" type="file" accept=".pdf,.jpg,.jpeg,.png,.doc,.docx" multiple></label>
+    <div id="fileList" class="filelist"></div>
+    <div id="fileError" class="error hidden"></div>
+  </div>
+
+  <div class="card">
+    <div class="step"><span class="num">2</span> Print Options</div>
+    <div class="grid">
+      <div class="field"><label>Print Type</label><select id="printType"><option value="BW">B/W</option><option value="COLOR">Colour</option></select></div>
+      <div class="field"><label>Paper Size</label><select id="paperSize"><option value="A4">A4</option><option value="A3">A3</option></select></div>
+      <div class="field"><label>Copies</label><input id="copies" type="number" min="1" max="100" value="1"></div>
+    </div>
+    <div class="amount"><span>Total Amount</span><strong id="amount">₹0.00</strong></div>
+    <div class="muted small" style="margin-top:7px">Final amount is calculated from the shop's current payment settings.</div>
+  </div>
+
+  <div class="card" id="paymentCard">
+    <div class="step"><span class="num">3</span> Pay & Submit</div>
+    <div class="pay">
+      <img id="qr" class="qr" alt="UPI Payment QR">
+      <div><div class="muted">Pay using UPI</div><div id="upi" class="upi">Loading...</div><div id="business" class="muted" style="margin-top:5px"></div><div class="paynote">Scan the QR above and pay the exact amount shown. After payment, tick the confirmation box and submit your document.</div></div>
+    </div>
+    <label class="check"><input id="paid" type="checkbox"><span>I have completed the UPI payment of <b id="paidAmount">₹0.00</b> and want to submit this document for printing.</span></label>
+    <button id="submit" class="btn primary" disabled>✓ Payment Done & Submit for Printing</button>
+    <div id="msg" style="margin-top:12px"></div>
+  </div>
+</div>
+<script>
+const clientId=decodeURIComponent(location.pathname.split('/').pop());let cfg=null;
+const $=id=>document.getElementById(id);
+function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]));}
+function selectedFiles(){return Array.from($('files').files||[])}
+function showFiles(){const fs=selectedFiles();$('fileError').classList.add('hidden');if(!fs.length){$('fileList').innerHTML='';return}const bad=fs.find(f=>f.size>20*1024*1024);if(bad){$('fileError').textContent=bad.name+' is larger than 20 MB.';$('fileError').classList.remove('hidden');}$('fileList').innerHTML=fs.map(f=>`<div class="file"><span>📄 ${esc(f.name)}</span><span>${(f.size/1024/1024).toFixed(2)} MB</span></div>`).join('');update();}
+function calc(){if(!cfg)return 0;const n=Math.max(1,Math.min(100,Number($('copies').value)||1));const rate=$('printType').value==='COLOR'?Number(cfg.payment.colorRate||0):Number(cfg.payment.bwRate||0);const amount=Math.max(Number(cfg.payment.minimumAmount||0),Number(cfg.payment.baseAmount||0)+rate*n);$('amount').textContent='₹'+amount.toFixed(2);$('paidAmount').textContent='₹'+amount.toFixed(2);const u='/api/v1/public/client/'+encodeURIComponent(clientId)+'/payment-qr.svg?amount='+encodeURIComponent(amount.toFixed(2));if(cfg.payment.upiId) $('qr').src=u;return amount;}
+function update(){calc();$('submit').disabled=!($('paid').checked&&selectedFiles().length&&cfg);}
+async function init(){try{const r=await fetch('/api/v1/public/client/'+encodeURIComponent(clientId));const j=await r.json();if(!r.ok)throw Error(j.error||'Client not found');cfg=j;$('shop').innerHTML='<b>'+esc(j.deviceName||'Client PC')+'</b> • '+esc(j.clientId||clientId);$('status').innerHTML=j.online?'<span class="online">● Online</span>':'<span class="offline">● Offline</span>';const p=j.payment||{};$('upi').textContent=p.upiId||p.upiNumber||'Payment account not configured';$('business').textContent=p.businessName||'';if(!p.upiId){$('msg').innerHTML='<div class="error">Payment account is not configured. Please contact the shop.</div>';$('submit').disabled=true;}calc();}catch(e){$('msg').innerHTML='<div class="error">'+esc(e.message)+'</div>';$('submit').disabled=true}}
+async function submitJobs(){const fs=selectedFiles();if(!fs.length)return error('Please select a document.');if(fs.some(f=>f.size>20*1024*1024))return error('Each file must be 20 MB or smaller.');if(!cfg.payment.upiId)return error('Payment account is not configured.');if(!$('paid').checked)return error('Please confirm that payment is completed.');$('submit').disabled=true;$('msg').innerHTML='<div class="notice">Uploading and sending print job... Please wait.</div>';let done=[];try{for(const f of fs){const base64=await readBase64(f);const body={fileName:f.name,fileBase64:base64,printType:$('printType').value,paperSize:$('paperSize').value,copies:Math.max(1,Math.min(100,Number($('copies').value)||1))};const r=await fetch('/api/v1/public/client/'+encodeURIComponent(clientId)+'/upload',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});const j=await r.json();if(!r.ok)throw Error((j.error||'Upload failed')+' for '+f.name);done.push(j.jobId)}$('uploadCard').classList.add('hidden');$('paymentCard').innerHTML='<div class="step"><span class="num">✓</span> Submitted Successfully</div><div class="success">Your document has been submitted to the print queue.<br><b>Job ID:</b> '+done.map(esc).join(', ')+'<br><br>The client PC will receive the job automatically.</div><button class="btn secondary" style="margin-top:12px" onclick="location.reload()">Upload Another Document</button>';}catch(e){error(e.message);$('submit').disabled=false}}
+function readBase64(f){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]||'');r.onerror=()=>reject(Error('Could not read '+f.name));r.readAsDataURL(f)})}
+function error(t){$('msg').innerHTML='<div class="error">'+esc(t)+'</div>'}
+$('files').addEventListener('change',showFiles);$('printType').addEventListener('change',update);$('paperSize').addEventListener('change',update);$('copies').addEventListener('input',update);$('paid').addEventListener('change',update);$('submit').addEventListener('click',submitJobs);init();
+</script>
+</body></html>
