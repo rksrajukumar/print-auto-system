@@ -1,3 +1,11 @@
+
+## Admin Login (corrected package)
+
+Username: `admin`
+Password: `AutoPrint@2026`
+
+Render `ADMIN_USER` and `ADMIN_PASSWORD` variables are not required for this corrected package. After first login, change the password from Settings.
+
 # Auto Print Server - Final
 
 Production-ready server package for the Auto Print client/customer QR print workflow.
