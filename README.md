@@ -1,54 +1,34 @@
+# AUTO PRINT SERVER FINAL
 
-## Admin Login (corrected package)
+## Render deployment
+Build/Start:
+- Build: `npm install`
+- Start: `npm start`
 
-Username: `admin`
-Password: `AutoPrint@2026`
+Environment variables:
+- `BASE_URL=https://YOUR-RENDER-SERVICE.onrender.com`
+- `DATABASE_URL=your MySQL connection URL`
+- `CLIENT_REGISTRATION_KEY=RK-AutoPrint-2026-8xK9`
+- `ADMIN_USERNAME=admin`
+- `ADMIN_PASSWORD=Admin@12345`
+- `JWT_SECRET=<long random secret>`
 
-Render `ADMIN_USER` and `ADMIN_PASSWORD` variables are not required for this corrected package. After first login, change the password from Settings.
+## Main routes
+- `/` Admin dashboard
+- `/upload/CLIENT_ID` Customer upload page
+- `/default-payment.html` Payment settings placeholder
+- `/health` Health check
+- `/api/v1/client/register` Windows client registration
+- `/api/v1/client/heartbeat` Client heartbeat
+- `/api/v1/client/jobs` Client queued jobs
+- `/api/v1/client/jobs/:jobId/file` Client job download
+- `/api/v1/client/jobs/:jobId/status` Client status
+- `/api/v1/public/client/:clientId/qr.svg` Customer QR
+- `/api/v1/public/upload/:clientId` Customer upload
+- `/api/v1/public/job/:jobId` Job status
 
-# Auto Print Server - Final
-
-Production-ready server package for the Auto Print client/customer QR print workflow.
-
-## Render settings
-
-- Runtime: Docker
-- Dockerfile: included
-- Port: `10000` (Render may inject `PORT`; the server honors it)
-- Start command is provided by the Dockerfile.
-
-### Required environment variables
-
-- `ADMIN_USER`
-- `ADMIN_PASSWORD`
-- `CLIENT_KEY_NAME` = `rksrajukumar`
-- `CLIENT_REGISTRATION_KEY` = your private registration key
-
-Optional:
-
-- `PUBLIC_URL` = `https://print-auto-system-1.onrender.com`
-- `DATA_DIR` = `./data`
-- `MAX_JOB_RETRIES` = `3`
-- `FAILED_FILE_RETENTION_MS` = `86400000`
-- `CLEANUP_INTERVAL_MS` = `900000`
-
-Do not commit real passwords or registration keys to GitHub.
-
-## Client connection
-
-The Windows client should use:
-
-- Server URL: `https://print-auto-system-1.onrender.com`
-- Client key: `rksrajukumar`
-- Registration key: the same value configured as `CLIENT_REGISTRATION_KEY`
-- Poll interval: 5 seconds
-
-The server provides client registration, heartbeat, job polling, file download, print-status updates, customer upload, QR generation, payment QR, admin overview, retry and cancellation APIs.
-
-## Health check
-
-`GET /health` must return JSON with `ok: true`.
-
-## Important Render note
-
-The default `./data` directory is local to the running instance. If client/job data must survive Render restarts or redeploys, attach a persistent disk and set `DATA_DIR` to its mount path.
+## Notes
+The server uses MySQL and creates its required tables automatically on startup.
+The temporary admin password is `Admin@12345`; change it from the dashboard after first login.
+Allowed uploads: PDF/JPG/JPEG/PNG, maximum 25 MB per file.
+Completed job files are removed from server storage after the client reports COMPLETED.
