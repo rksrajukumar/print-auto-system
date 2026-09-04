@@ -76,7 +76,7 @@ body{margin:0;background:linear-gradient(180deg,#edf3ff,#f4f7fb);color:var(--ink
 <div class="field"><label>Copies</label><input id="copies" type="number" min="1" max="100" value="1"></div>
 </div>
 <div class="amount"><span>Total Amount</span><strong id="amount">₹0.00</strong></div>
-<div class="muted small" style="margin-top:7px">Final amount is calculated from the shop's current payment settings.</div>
+<div id="calcDetails" class="muted small" style="margin-top:7px">Loading payment rates…</div>
 </div>
 
 <div class="card" id="paymentCard">
@@ -111,30 +111,14 @@ $('rotateBtn').onclick=async()=>{const f=processed[selectedKey];if(!f)return err
 function loadImage(f){return new Promise((resolve,reject)=>{const i=new Image();i.onload=()=>resolve(i);i.onerror=reject;i.src=URL.createObjectURL(f)})}
 function drawFit(ctx,img,x,y,w,h){const s=Math.min(w/img.naturalWidth,h/img.naturalHeight),dw=img.naturalWidth*s,dh=img.naturalHeight*s;ctx.drawImage(img,x+(w-dw)/2,y+(h-dh)/2,dw,dh)}
 async function showA4(){const c=$('a4Canvas'),ctx=c.getContext('2d');c.width=794;c.height=1123;ctx.fillStyle='#fff';ctx.fillRect(0,0,c.width,c.height);if(mode==='DOCUMENT')return;try{
-  // A4 preview: 794x1123 px at 96 CSS-DPI. Card print size is fixed at 8.6 x 5.4 cm.
-  // Keep the existing A4 page and layout flow; only the card dimensions are normalized.
-  const cardW=Math.round(8.6/2.54*96), cardH=Math.round(5.4/2.54*96);
-  if(mode==='AADHAAR'){
-    const fs=['front','back'].map(k=>processed[k]);
-    if(fs.every(Boolean)){
-      const a=await loadImage(fs[0]),b=await loadImage(fs[1]);
-      drawFit(ctx,a,80,70,cardW,cardH);
-      drawFit(ctx,b,454,70,cardW,cardH);
-    }
-  }else if(mode==='IDCARD'){
-    const fs=['front','back'].map(k=>processed[k]);
-    if(fs.every(Boolean)){
-      const a=await loadImage(fs[0]),b=await loadImage(fs[1]);
-      drawFit(ctx,a,80,80,cardW,cardH);
-      drawFit(ctx,b,414,80,cardW,cardH);
-    }
-  }else if(mode==='PAN'&&processed.single){
-    const a=await loadImage(processed.single);
-    drawFit(ctx,a,80,80,cardW,cardH);
-  }
-}catch(e){}}
+  // A4 Portrait. Card physical target: 8.6 x 5.4 cm at 96 CSS-DPI preview scale.
+  const cardW=Math.round(8.6/2.54*96),cardH=Math.round(5.4/2.54*96),gap=Math.round(.5/2.54*96),topY=Math.round(1.3/2.54*96);
+  if(mode==='AADHAAR'){const fs=['front','back'].map(k=>processed[k]);if(fs.every(Boolean)){const a=await loadImage(fs[0]),b=await loadImage(fs[1]),totalW=cardW*2+gap,startX=Math.round((c.width-totalW)/2);drawFit(ctx,a,startX,topY,cardW,cardH);drawFit(ctx,b,startX+cardW+gap,topY,cardW,cardH)}}
+  else if(mode==='IDCARD'){const fs=['front','back'].map(k=>processed[k]);if(fs.every(Boolean)){const a=await loadImage(fs[0]),b=await loadImage(fs[1]),totalW=cardW*2+gap,startX=Math.round((c.width-totalW)/2),y=Math.round(7/2.54*96);drawFit(ctx,a,startX,y,cardW,cardH);drawFit(ctx,b,startX+cardW+gap,y,cardW,cardH)}}
+  else if(mode==='PAN'&&processed.single){const a=await loadImage(processed.single),x=Math.round((c.width-cardW)/2);drawFit(ctx,a,x,topY,cardW,cardH)}
+}catch(e){console.error('A4 preview error:',e)}}
 function finalCardFile(){return new Promise(async(resolve,reject)=>{try{const fs=activeCardFiles();if(mode==='DOCUMENT')return resolve(null);if((mode==='AADHAAR'||mode==='IDCARD')&&fs.length<2)return reject(Error('Please upload both Front and Back images.'));if(mode==='PAN'&&fs.length<1)return reject(Error('Please upload PAN Card image.'));await showA4();const c=$('a4Canvas');c.toBlob(b=>b?resolve(new File([b],mode.toLowerCase()+'_A4.jpg',{type:'image/jpeg',lastModified:Date.now()})):reject(Error('Could not create A4 file')),'image/jpeg',0.95)}catch(e){reject(e)}})}
-function calc(){if(!cfg)return 0;const n=Math.max(1,Math.min(100,Number($('copies').value)||1));const rate=$('printType').value==='COLOR'?Number(cfg.payment.colorRate||0):Number(cfg.payment.bwRate||0);const amount=Math.max(Number(cfg.payment.minimumAmount||0),Number(cfg.payment.baseAmount||0)+rate*n);$('amount').textContent='₹'+amount.toFixed(2);$('paidAmount').textContent='₹'+amount.toFixed(2);if(cfg.payment.upiId)$('qr').src='/api/v1/public/client/'+encodeURIComponent(clientId)+'/payment-qr.svg?amount='+encodeURIComponent(amount.toFixed(2));return amount}
+function calc(){if(!cfg)return 0;const n=Math.max(1,Math.min(100,Number($('copies').value)||1));const isColor=$('printType').value==='COLOR';const rate=isColor?Number(cfg.payment.colorRate||0):Number(cfg.payment.bwRate||0);const base=Number(cfg.payment.baseAmount||0);const min=Number(cfg.payment.minimumAmount||0);const subtotal=base+rate*n;const amount=Math.max(min,subtotal);$('amount').textContent='₹'+amount.toFixed(2);$('paidAmount').textContent='₹'+amount.toFixed(2);$('calcDetails').textContent='Base ₹'+base.toFixed(2)+' + '+(isColor?'Colour':'B/W')+' ₹'+rate.toFixed(2)+' × '+n+' = ₹'+subtotal.toFixed(2)+(amount>subtotal?' • Minimum ₹'+min.toFixed(2):'');if(cfg.payment.upiId)$('qr').src='/api/v1/public/client/'+encodeURIComponent(clientId)+'/payment-qr.svg?amount='+encodeURIComponent(amount.toFixed(2));return amount}
 function update(){calc();const ok=mode==='DOCUMENT'?activeCardFiles().length>0:(mode==='PAN'?!!processed.single:!!processed.front&&!!processed.back);$('submit').disabled=!($('paid').checked&&ok&&cfg)}
 async function init(){try{const r=await fetch('/api/v1/public/client/'+encodeURIComponent(clientId)),j=await r.json();if(!r.ok)throw Error(j.error||'Client not found');cfg=j;$('shop').innerHTML='<b>'+esc(j.deviceName||'Client PC')+'</b> • '+esc(j.clientId||clientId);$('status').innerHTML=j.online?'<span class="online">● Online</span>':'<span class="offline">● Offline</span>';const p=j.payment||{};$('upi').textContent=p.upiId||p.upiNumber||'Payment account not configured';$('business').textContent=p.businessName||'';if(!p.upiId){$('msg').innerHTML='<div class="error">Payment account is not configured. Please contact the shop.</div>'}calc();update()}catch(e){$('msg').innerHTML='<div class="error">'+esc(e.message)+'</div>';update()}}
 function readBase64(f){return new Promise((resolve,reject)=>{const r=new FileReader();r.onload=()=>resolve(String(r.result).split(',')[1]||'');r.onerror=()=>reject(Error('Could not read '+f.name));r.readAsDataURL(f)})}
