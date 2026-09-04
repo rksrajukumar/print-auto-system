@@ -117,7 +117,42 @@ async function showA4(){const c=$('a4Canvas'),ctx=c.getContext('2d');c.width=794
   else if(mode==='IDCARD'){const fs=['front','back'].map(k=>processed[k]);if(fs.every(Boolean)){const a=await loadImage(fs[0]),b=await loadImage(fs[1]),totalW=cardW*2+gap,startX=Math.round((c.width-totalW)/2),y=Math.round(7/2.54*96);drawFit(ctx,a,startX,y,cardW,cardH);drawFit(ctx,b,startX+cardW+gap,y,cardW,cardH)}}
   else if(mode==='PAN'&&processed.single){const a=await loadImage(processed.single),x=Math.round((c.width-cardW)/2);drawFit(ctx,a,x,topY,cardW,cardH)}
 }catch(e){console.error('A4 preview error:',e)}}
-function finalCardFile(){return new Promise(async(resolve,reject)=>{try{const fs=activeCardFiles();if(mode==='DOCUMENT')return resolve(null);if((mode==='AADHAAR'||mode==='IDCARD')&&fs.length<2)return reject(Error('Please upload both Front and Back images.'));if(mode==='PAN'&&fs.length<1)return reject(Error('Please upload PAN Card image.'));await showA4();const c=$('a4Canvas');c.toBlob(b=>b?resolve(new File([b],mode.toLowerCase()+'_A4.jpg',{type:'image/jpeg',lastModified:Date.now()})):reject(Error('Could not create A4 file')),'image/jpeg',0.95)}catch(e){reject(e)}})}
+async function buildExactA4Pdf(){
+  const DPI=300, W=Math.round(21/2.54*DPI), H=Math.round(29.7/2.54*DPI);
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  const ctx=c.getContext('2d',{alpha:false}); ctx.fillStyle='#fff'; ctx.fillRect(0,0,W,H);
+  const cardW=Math.round(8.6/2.54*DPI), cardH=Math.round(5.4/2.54*DPI), gap=Math.round(.5/2.54*DPI), topY=Math.round(1.3/2.54*DPI);
+  if(mode==='AADHAAR'){
+    const fs=['front','back'].map(k=>processed[k]);
+    if(!fs.every(Boolean)) throw Error('Please upload both Front and Back images.');
+    const a=await loadImage(fs[0]),b=await loadImage(fs[1]),totalW=cardW*2+gap,startX=Math.round((W-totalW)/2);
+    drawFit(ctx,a,startX,topY,cardW,cardH); drawFit(ctx,b,startX+cardW+gap,topY,cardW,cardH);
+  } else if(mode==='IDCARD'){
+    const fs=['front','back'].map(k=>processed[k]);
+    if(!fs.every(Boolean)) throw Error('Please upload both Front and Back images.');
+    const a=await loadImage(fs[0]),b=await loadImage(fs[1]),totalW=cardW*2+gap,startX=Math.round((W-totalW)/2),y=Math.round(7/2.54*DPI);
+    drawFit(ctx,a,startX,y,cardW,cardH); drawFit(ctx,b,startX+cardW+gap,y,cardW,cardH);
+  } else if(mode==='PAN'){
+    if(!processed.single) throw Error('Please upload PAN Card image.');
+    const a=await loadImage(processed.single),x=Math.round((W-cardW)/2); drawFit(ctx,a,x,topY,cardW,cardH);
+  }
+  const jpeg=c.toDataURL('image/jpeg',0.95).split(',')[1];
+  const bin=atob(jpeg); const imgBytes=new Uint8Array(bin.length); for(let i=0;i<bin.length;i++) imgBytes[i]=bin.charCodeAt(i);
+  const enc=new TextEncoder(); const chunks=[]; const offsets=[]; let pos=0;
+  const push=(u)=>{chunks.push(u);pos+=u.length};
+  const addObj=(num,body)=>{offsets[num]=pos;push(enc.encode(num+' 0 obj\n'));push(typeof body==='string'?enc.encode(body):body);push(enc.encode('\nendobj\n'))};
+  push(enc.encode('%PDF-1.3\n%\xFF\xFF\xFF\xFF\n'));
+  addObj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  addObj(2,'<< /Type /Pages /Kids [3 0 R] /Count 1 >>');
+  addObj(3,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595.28 841.89] /Resources << /XObject << /Im1 4 0 R >> >> /Contents 5 0 R >>');
+  addObj(4,(()=>{const h=enc.encode('<< /Type /XObject /Subtype /Image /Width '+W+' /Height '+H+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+imgBytes.length+' >>\nstream\n'); const e=enc.encode('\nendstream'); const out=new Uint8Array(h.length+imgBytes.length+e.length);out.set(h,0);out.set(imgBytes,h.length);out.set(e,h.length+imgBytes.length);return out})());
+  const content='q\n595.28 0 0 841.89 0 0 cm\n/Im1 Do\nQ\n';
+  addObj(5,enc.encode('<< /Length '+content.length+' >>\nstream\n'+content+'endstream'));
+  const xref=pos; let table='xref\n0 6\n0000000000 65535 f \n'; for(let i=1;i<=5;i++) table+=String(offsets[i]).padStart(10,'0')+' 00000 n \n'; table+='trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n'+xref+'\n%%EOF'; push(enc.encode(table));
+  const total=chunks.reduce((n,u)=>n+u.length,0),out=new Uint8Array(total);let at=0;for(const u of chunks){out.set(u,at);at+=u.length}
+  return new File([out],mode.toLowerCase()+'_A4.pdf',{type:'application/pdf',lastModified:Date.now()});
+}
+function finalCardFile(){return new Promise(async(resolve,reject)=>{try{if(mode==='DOCUMENT')return resolve(null);resolve(await buildExactA4Pdf())}catch(e){reject(e)}})}
 function calc(){if(!cfg)return 0;const n=Math.max(1,Math.min(100,Number($('copies').value)||1));const isColor=$('printType').value==='COLOR';const rate=isColor?Number(cfg.payment.colorRate||0):Number(cfg.payment.bwRate||0);const base=Number(cfg.payment.baseAmount||0);const min=Number(cfg.payment.minimumAmount||0);const subtotal=base+rate*n;const amount=Math.max(min,subtotal);$('amount').textContent='₹'+amount.toFixed(2);$('paidAmount').textContent='₹'+amount.toFixed(2);$('calcDetails').textContent='Base ₹'+base.toFixed(2)+' + '+(isColor?'Colour':'B/W')+' ₹'+rate.toFixed(2)+' × '+n+' = ₹'+subtotal.toFixed(2)+(amount>subtotal?' • Minimum ₹'+min.toFixed(2):'');if(cfg.payment.upiId)$('qr').src='/api/v1/public/client/'+encodeURIComponent(clientId)+'/payment-qr.svg?amount='+encodeURIComponent(amount.toFixed(2));return amount}
 function update(){calc();const ok=mode==='DOCUMENT'?activeCardFiles().length>0:(mode==='PAN'?!!processed.single:!!processed.front&&!!processed.back);$('submit').disabled=!($('paid').checked&&ok&&cfg)}
 async function init(){try{const r=await fetch('/api/v1/public/client/'+encodeURIComponent(clientId)),j=await r.json();if(!r.ok)throw Error(j.error||'Client not found');cfg=j;$('shop').innerHTML='<b>'+esc(j.deviceName||'Client PC')+'</b> • '+esc(j.clientId||clientId);$('status').innerHTML=j.online?'<span class="online">● Online</span>':'<span class="offline">● Offline</span>';const p=j.payment||{};$('upi').textContent=p.upiId||p.upiNumber||'Payment account not configured';$('business').textContent=p.businessName||'';if(!p.upiId){$('msg').innerHTML='<div class="error">Payment account is not configured. Please contact the shop.</div>'}calc();update()}catch(e){$('msg').innerHTML='<div class="error">'+esc(e.message)+'</div>';update()}}
